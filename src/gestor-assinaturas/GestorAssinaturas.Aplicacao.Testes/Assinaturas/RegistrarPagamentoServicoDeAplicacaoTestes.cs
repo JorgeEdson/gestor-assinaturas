@@ -141,6 +141,23 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
     }
 
     [Fact]
+    public async Task DeveRejeitarPagamentoDeAssinaturaCanceladaSemAcionarOGateway()
+    {
+        var assinatura = SemearAssinatura();
+        var fatura = SemearFaturaEmAberto(assinatura);
+        assinatura.CancelarImediatamente();
+        var gateway = GatewayPagamentoFalso.QueAprova();
+        var servico = CriarServico(gateway);
+
+        var resultado = await servico.ExecutarAsync(new RegistrarPagamentoEntrada(fatura.Identificador));
+
+        Assert.True(resultado.EhFalha);
+        Assert.False(gateway.FoiAcionado);
+        Assert.True(fatura.EstaAberta());
+        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+    }
+
+    [Fact]
     public async Task DeveRetornarFalhaQuandoAFaturaNaoEhEncontrada()
     {
         var gateway = GatewayPagamentoFalso.QueAprova();

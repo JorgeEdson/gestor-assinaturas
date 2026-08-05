@@ -99,6 +99,15 @@ public sealed class RegistrarPagamentoApplicationService
 
         var assinatura = resultadoDaAssinatura.Instancia;
 
+        if (assinatura.EstaCancelada())
+        {
+            _logger.LogWarning(
+                "Registro de pagamento rejeitado: assinatura {IdentificadorDaAssinatura} está cancelada.",
+                assinatura.Identificador);
+
+            return Resultado<SituacaoDoPagamento>.Falha("Uma assinatura cancelada não aceita novo pagamento.");
+        }
+
         var requisicaoDeCobranca = new RequisicaoDeCobranca(
             fatura.Identificador,
             assinatura.Identificador,

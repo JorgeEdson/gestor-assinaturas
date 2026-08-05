@@ -64,6 +64,21 @@ public class ServicoReativacaoTestes
     }
 
     [Fact]
+    public void DeveRejeitarPagamentoDeAssinaturaCanceladaMantendoAFaturaEmAberto()
+    {
+        var assinatura = CriarAssinaturaAtiva();
+        assinatura.CancelarImediatamente();
+        var fatura = EmitirFatura(assinatura.Identificador);
+        var servico = new ServicoReativacao();
+
+        var resultado = servico.RegistrarPagamentoAprovado(assinatura, fatura);
+
+        Assert.True(resultado.EhFalha);
+        Assert.Contains(resultado.Erros!, erro => erro.Contains("cancelada"));
+        Assert.True(fatura.EstaAberta());
+    }
+
+    [Fact]
     public void DeveRetornarFalhaQuandoAFaturaNaoPertenceAAssinatura()
     {
         var assinatura = CriarAssinaturaAtiva();

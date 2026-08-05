@@ -14,6 +14,11 @@ public sealed class ServicoReativacao
             return resultadoDaValidacao;
         }
 
+        if (assinatura.EstaCancelada())
+        {
+            return Resultado.Falha("Uma assinatura cancelada não aceita novo pagamento.");
+        }
+
         var resultadoDoPagamento = fatura.MarcarComoPaga();
 
         if (resultadoDoPagamento.EhFalha)

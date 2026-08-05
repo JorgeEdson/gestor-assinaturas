@@ -14,6 +14,11 @@ public sealed class ServicoInadimplencia
             return resultadoDaValidacao;
         }
 
+        if (assinatura.EstaCancelada())
+        {
+            return Resultado.Falha("Uma assinatura cancelada não aceita novo pagamento.");
+        }
+
         var resultadoDaRecusa = fatura.MarcarComoFalha();
 
         if (resultadoDaRecusa.EhFalha)
