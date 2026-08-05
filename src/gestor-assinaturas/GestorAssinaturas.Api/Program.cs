@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using GestorAssinaturas.Api.Configuracao.Seed;
 using GestorAssinaturas.Aplicacao;
 using GestorAssinaturas.Infraestrutura;
 using GestorAssinaturas.Infraestrutura.Persistencia;
@@ -24,12 +25,13 @@ var aplicacao = construtorDaAplicacao.Build();
 if (aplicacao.Configuration.GetValue<bool>("AplicarMigracoesAoIniciar"))
 {
     using var escopoDeInicializacao = aplicacao.Services.CreateScope();
-    var contextoDeDados = escopoDeInicializacao.ServiceProvider.GetRequiredService<ContextoDeDados>();
+    var contextoDeDados = escopoDeInicializacao.ServiceProvider.GetRequiredService<GestorAssinaturasDbContext>();
     await contextoDeDados.Database.MigrateAsync();
 }
 
 if (aplicacao.Environment.IsDevelopment())
 {
+    await aplicacao.AplicarCargaInicialAsync();
     aplicacao.MapOpenApi();
 }
 

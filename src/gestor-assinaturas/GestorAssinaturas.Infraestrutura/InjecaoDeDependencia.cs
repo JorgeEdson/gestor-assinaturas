@@ -20,12 +20,12 @@ public static class InjecaoDeDependencia
         ArgumentNullException.ThrowIfNull(servicos);
         ArgumentException.ThrowIfNullOrWhiteSpace(cadeiaDeConexao);
 
-        servicos.AddDbContext<ContextoDeDados>(opcoes => opcoes.UseSqlServer(cadeiaDeConexao));
+        servicos.AddDbContext<GestorAssinaturasDbContext>(opcoes => opcoes.UseSqlServer(cadeiaDeConexao));
 
-        servicos.AddScoped<IRepositorioPlano, RepositorioPlano>();
-        servicos.AddScoped<IRepositorioCliente, RepositorioCliente>();
-        servicos.AddScoped<IRepositorioAssinatura, RepositorioAssinatura>();
-        servicos.AddScoped<IRepositorioFatura, RepositorioFatura>();
+        servicos.AddScoped<IRepositorioPlano, PlanoRepository>();
+        servicos.AddScoped<IRepositorioCliente, ClienteRepository>();
+        servicos.AddScoped<IRepositorioAssinatura, AssinaturaRepository>();
+        servicos.AddScoped<IRepositorioFatura, FaturaRepository>();
         servicos.AddScoped<IUnitOfWork, UnitOfWork>();
 
         servicos.AddSingleton<IRelogioDoSistema, RelogioDoSistema>();

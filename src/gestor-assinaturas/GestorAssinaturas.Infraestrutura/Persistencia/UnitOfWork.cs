@@ -6,11 +6,11 @@ namespace GestorAssinaturas.Infraestrutura.Persistencia;
 
 public sealed class UnitOfWork : IUnitOfWork, IAsyncDisposable
 {
-    private readonly ContextoDeDados _contextoDeDados;
+    private readonly GestorAssinaturasDbContext _contextoDeDados;
     private IDbContextTransaction? _transacaoAtual;
 
     public UnitOfWork(
-        ContextoDeDados contextoDeDados,
+        GestorAssinaturasDbContext contextoDeDados,
         IRepositorioPlano planos,
         IRepositorioCliente clientes,
         IRepositorioAssinatura assinaturas,
