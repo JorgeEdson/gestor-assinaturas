@@ -67,7 +67,9 @@ public class ServicoInadimplenciaTestes
     public void DeveRejeitarPagamentoDeAssinaturaCanceladaMantendoAFaturaEmAberto()
     {
         var assinatura = CriarAssinaturaAtiva();
-        assinatura.CancelarImediatamente();
+        var resultadoDoCancelamento = assinatura.CancelarImediatamente();
+        Assert.True(resultadoDoCancelamento.EhSucesso);
+        Assert.True(assinatura.EstaCancelada());
         var fatura = EmitirFatura(assinatura.Identificador);
         var servico = new ServicoInadimplencia();
 

@@ -18,6 +18,11 @@ public sealed class Assinatura : Entidade
             (StatusAssinatura.Suspensa, StatusAssinatura.Cancelada)
         };
 
+    private Assinatura()
+    {
+        Plano = null!;
+    }
+
     private Assinatura(
         Guid identificador,
         Guid identificadorDoCliente,

@@ -8,6 +8,12 @@ public sealed class Cliente : Entidade
     public const int QuantidadeMinimaDeCaracteresDoNome = 3;
     public const int QuantidadeMaximaDeCaracteresDoNome = 150;
 
+    private Cliente()
+    {
+        Nome = null!;
+        Email = null!;
+    }
+
     private Cliente(Guid identificador, string nome, Email email)
         : base(identificador)
     {

@@ -2,6 +2,10 @@ namespace GestorAssinaturas.Dominio.Comum;
 
 public abstract class Entidade
 {
+    protected Entidade()
+    {
+    }
+
     protected Entidade(Guid identificador)
     {
         Identificador = identificador;

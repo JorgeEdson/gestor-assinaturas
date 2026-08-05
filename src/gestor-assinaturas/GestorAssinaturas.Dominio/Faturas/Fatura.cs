@@ -5,6 +5,11 @@ namespace GestorAssinaturas.Dominio.Faturas;
 
 public sealed class Fatura : Entidade
 {
+    private Fatura()
+    {
+        Valor = null!;
+    }
+
     private Fatura(
         Guid identificador,
         Guid identificadorDaAssinatura,

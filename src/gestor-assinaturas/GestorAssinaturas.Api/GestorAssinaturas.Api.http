@@ -1,0 +1,96 @@
+@enderecoDaApi = http://localhost:5080
+
+### 1. Cadastrar plano com trial (cenario 1: ativacao de trial)
+POST {{enderecoDaApi}}/api/planos
+Content-Type: application/json
+
+{
+  "nome": "Plano Profissional",
+  "valor": 99.90,
+  "moeda": "BRL",
+  "cicloDeCobranca": "Mensal",
+  "periodoDeTrialEmDias": 14
+}
+
+### 2. Cadastrar plano sem trial com preco que o gateway recusa (cenario 2: reativacao)
+POST {{enderecoDaApi}}/api/planos
+Content-Type: application/json
+
+{
+  "nome": "Plano Essencial",
+  "valor": 49.99,
+  "moeda": "BRL",
+  "cicloDeCobranca": "Mensal",
+  "periodoDeTrialEmDias": 0
+}
+
+### 3. Cadastrar cliente
+POST {{enderecoDaApi}}/api/clientes
+Content-Type: application/json
+
+{
+  "nome": "Empresa Contratante",
+  "email": "contato@empresa.com"
+}
+
+### 4. Criar assinatura no plano com trial (nasce em Trial, sem fatura)
+POST {{enderecoDaApi}}/api/assinaturas
+Content-Type: application/json
+
+{
+  "identificadorDoCliente": "COLE_O_IDENTIFICADOR_DO_CLIENTE",
+  "identificadorDoPlano": "COLE_O_IDENTIFICADOR_DO_PLANO_COM_TRIAL"
+}
+
+### 5. Ativar a assinatura em trial (Trial -> Ativa, gera a primeira fatura)
+POST {{enderecoDaApi}}/api/assinaturas/COLE_O_IDENTIFICADOR_DA_ASSINATURA/ativacao
+
+### 6. Pagar a primeira fatura (gateway aprova, fatura Paga)
+POST {{enderecoDaApi}}/api/faturas/COLE_O_IDENTIFICADOR_DA_FATURA/pagamento
+
+### 7. Criar assinatura no plano de 49,99 (nasce Ativa com cobranca imediata)
+POST {{enderecoDaApi}}/api/assinaturas
+Content-Type: application/json
+
+{
+  "identificadorDoCliente": "COLE_O_IDENTIFICADOR_DO_CLIENTE",
+  "identificadorDoPlano": "COLE_O_IDENTIFICADOR_DO_PLANO_DE_49_99"
+}
+
+### 8. Tentar pagar a fatura de 49,99 (gateway recusa, assinatura vira Inadimplente)
+POST {{enderecoDaApi}}/api/faturas/COLE_O_IDENTIFICADOR_DA_FATURA_DE_49_99/pagamento
+
+### 9. Trocar o plano da assinatura inadimplente (rejeitado pelo dominio)
+POST {{enderecoDaApi}}/api/assinaturas/COLE_O_IDENTIFICADOR_DA_ASSINATURA_INADIMPLENTE/troca-de-plano
+Content-Type: application/json
+
+{
+  "identificadorDoNovoPlano": "COLE_O_IDENTIFICADOR_DO_PLANO_COM_TRIAL"
+}
+
+### 10. Trocar o plano da assinatura ativa (reprecifica faturas em aberto)
+POST {{enderecoDaApi}}/api/assinaturas/COLE_O_IDENTIFICADOR_DA_ASSINATURA_ATIVA/troca-de-plano
+Content-Type: application/json
+
+{
+  "identificadorDoNovoPlano": "COLE_O_IDENTIFICADOR_DE_OUTRO_PLANO"
+}
+
+### 11. Cancelar ao fim do periodo vigente (mantem Ativa com cancelamento agendado)
+POST {{enderecoDaApi}}/api/assinaturas/COLE_O_IDENTIFICADOR_DA_ASSINATURA/cancelamento
+Content-Type: application/json
+
+{
+  "modalidade": "AoFimDoPeriodoVigente"
+}
+
+### 12. Cancelar imediatamente
+POST {{enderecoDaApi}}/api/assinaturas/COLE_O_IDENTIFICADOR_DA_ASSINATURA/cancelamento
+Content-Type: application/json
+
+{
+  "modalidade": "Imediato"
+}
+
+### 13. Tentar pagar fatura de assinatura cancelada (rejeitado, gateway nao e acionado)
+POST {{enderecoDaApi}}/api/faturas/COLE_O_IDENTIFICADOR_DA_FATURA/pagamento

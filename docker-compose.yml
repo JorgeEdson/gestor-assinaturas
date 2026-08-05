@@ -1,0 +1,50 @@
+name: gestor-assinaturas
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: gestor-assinaturas-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "SenhaForte!2026"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - dados-sqlserver:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'SenhaForte!2026' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    build:
+      context: ./src/gestor-assinaturas
+      dockerfile: GestorAssinaturas.Api/Dockerfile
+    container_name: gestor-assinaturas-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__GestorAssinaturas: "Server=sqlserver,1433;Database=GestorAssinaturas;User Id=sa;Password=SenhaForte!2026;TrustServerCertificate=True"
+      AplicarMigracoesAoIniciar: "true"
+    ports:
+      - "5080:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: gestor-assinaturas-cloudbeaver
+    ports:
+      - "8978:8978"
+    volumes:
+      - dados-cloudbeaver:/opt/cloudbeaver/workspace
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+volumes:
+  dados-sqlserver:
+  dados-cloudbeaver:

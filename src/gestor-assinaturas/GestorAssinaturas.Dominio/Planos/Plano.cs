@@ -9,6 +9,13 @@ public sealed class Plano : Entidade
     public const int QuantidadeMaximaDeCaracteresDoNome = 100;
     public const int QuantidadeMaximaDeDiasDePeriodoDeTrial = 365;
 
+    private Plano()
+    {
+        Nome = null!;
+        Preco = null!;
+        CicloDeCobranca = null!;
+    }
+
     private Plano(
         Guid identificador,
         string nome,

@@ -1,6 +1,8 @@
 <Solution>
   <Project Path="GestorAssinaturas.Dominio/GestorAssinaturas.Dominio.csproj" />
   <Project Path="GestorAssinaturas.Aplicacao/GestorAssinaturas.Aplicacao.csproj" />
+  <Project Path="GestorAssinaturas.Infraestrutura/GestorAssinaturas.Infraestrutura.csproj" />
+  <Project Path="GestorAssinaturas.Api/GestorAssinaturas.Api.csproj" />
   <Folder Name="/Testes/">
     <Project Path="GestorAssinaturas.Dominio.Testes/GestorAssinaturas.Dominio.Testes.csproj" />
     <Project Path="GestorAssinaturas.Aplicacao.Testes/GestorAssinaturas.Aplicacao.Testes.csproj" />
