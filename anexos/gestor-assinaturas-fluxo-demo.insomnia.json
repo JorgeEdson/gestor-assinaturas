@@ -1,0 +1,353 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-08-05T22:30:00.000Z",
+  "__export_source": "gestor-assinaturas.demo",
+  "resources": [
+    {
+      "_id": "wrk_gestor_assinaturas",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "Gestor Assinaturas — Fluxo da Demo",
+      "description": "Collection de demonstracao da Onion Architecture. Rode os folders na ordem; cada request encadeia o id da resposta anterior. Cenarios: A (ativacao de trial + pagamento aprovado), B (cobranca recusada -> inadimplencia), Troca de plano, Cancelamento e Erros de dominio. Observacao: a reativacao ponta a ponta (RN-05) nao e encadeavel pela API atual porque exige uma nova fatura em aberto (RF-09 renovacao e [DESAFIO]); ela esta coberta pelo teste de unidade DeveReativarAssinaturaInadimplenteQuandoOPagamentoEhAprovado. Pre-requisito: docker compose up com o seed aplicado."
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_gestor_assinaturas",
+      "name": "Local (docker compose)",
+      "data": {
+        "baseUrl": "http://localhost:5080",
+        "clienteAlfa": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "clienteBeta": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        "planoProfissionalTrial": "11111111-1111-1111-1111-111111111111",
+        "planoEssencial": "22222222-2222-2222-2222-222222222222",
+        "planoCobrancaRecusada": "33333333-3333-3333-3333-333333333333",
+        "planoCorporativoAnual": "44444444-4444-4444-4444-444444444444",
+        "clienteInexistente": "cccccccc-cccc-cccc-cccc-cccccccccccc"
+      },
+      "metaSortKey": 1
+    },
+    {
+      "_id": "fld_cenario_a",
+      "_type": "request_group",
+      "parentId": "wrk_gestor_assinaturas",
+      "name": "01 — Cenario A: Ativacao de Trial (aprovado)",
+      "description": "Trial -> Ativa -> primeira fatura -> pagamento aprovado. Totalmente encadeado.",
+      "metaSortKey": -100
+    },
+    {
+      "_id": "req_a1_criar_trial",
+      "_type": "request",
+      "parentId": "fld_cenario_a",
+      "name": "1.1 Criar assinatura no plano com trial",
+      "description": "Empresa Alfa no Plano Profissional (trial 14 dias). Nasce em Trial, sem fatura. Retorna { identificador } da assinatura.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"identificadorDoCliente\": \"{{ _.clienteAlfa }}\",\n  \"identificadorDoPlano\": \"{{ _.planoProfissionalTrial }}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -100
+    },
+    {
+      "_id": "req_a2_ativar",
+      "_type": "request",
+      "parentId": "fld_cenario_a",
+      "name": "1.2 Ativar a assinatura",
+      "description": "Trial -> Ativa e gera a primeira fatura. Usa o identificador da assinatura criada em 1.1. Retorna { identificadorDaPrimeiraFatura }.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_a1_criar_trial', '$.identificador', 'never', 60 %}/ativacao",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -99
+    },
+    {
+      "_id": "req_a3_pagar",
+      "_type": "request",
+      "parentId": "fld_cenario_a",
+      "name": "1.3 Pagar a primeira fatura (aprovado)",
+      "description": "Gateway aprova (valor nao termina em ,99). Fatura -> Paga. Usa a fatura gerada em 1.2. Retorna { situacao: \"Aprovado\" }.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/faturas/{% response 'body', 'req_a2_ativar', '$.identificadorDaPrimeiraFatura', 'never', 60 %}/pagamento",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -98
+    },
+    {
+      "_id": "fld_cenario_b",
+      "_type": "request_group",
+      "parentId": "wrk_gestor_assinaturas",
+      "name": "02 — Cenario B: Cobranca Recusada -> Inadimplencia",
+      "description": "Cria um plano de 49,99 COM trial (para encadear a fatura), ativa e paga -> gateway recusa (centavos ,99) -> fatura Falha e assinatura Inadimplente. Totalmente encadeado.",
+      "metaSortKey": -90
+    },
+    {
+      "_id": "req_b0_criar_plano_recusa",
+      "_type": "request",
+      "parentId": "fld_cenario_b",
+      "name": "2.1 Cadastrar plano de 49,99 com trial",
+      "description": "Preco terminando em ,99 faz o gateway simulado recusar. Trial permite obter o id da fatura via ativacao. Retorna { identificador } do plano.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/planos",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Plano Demo Recusa\",\n  \"valor\": 49.99,\n  \"moeda\": \"BRL\",\n  \"cicloDeCobranca\": \"Mensal\",\n  \"periodoDeTrialEmDias\": 14\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -90
+    },
+    {
+      "_id": "req_b1_criar_assinatura",
+      "_type": "request",
+      "parentId": "fld_cenario_b",
+      "name": "2.2 Criar assinatura nesse plano",
+      "description": "Empresa Beta no plano de 49,99 criado em 2.1. Nasce em Trial.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"identificadorDoCliente\": \"{{ _.clienteBeta }}\",\n  \"identificadorDoPlano\": \"{% response 'body', 'req_b0_criar_plano_recusa', '$.identificador', 'never', 60 %}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -89
+    },
+    {
+      "_id": "req_b2_ativar",
+      "_type": "request",
+      "parentId": "fld_cenario_b",
+      "name": "2.3 Ativar (gera fatura de 49,99 em aberto)",
+      "description": "Trial -> Ativa. A primeira fatura sai a 49,99, em aberto. Retorna { identificadorDaPrimeiraFatura }.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_b1_criar_assinatura', '$.identificador', 'never', 60 %}/ativacao",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -88
+    },
+    {
+      "_id": "req_b3_pagar_recusado",
+      "_type": "request",
+      "parentId": "fld_cenario_b",
+      "name": "2.4 Pagar a fatura (RECUSADO)",
+      "description": "Gateway recusa por causa dos centavos ,99. Fatura -> Falha e assinatura -> Inadimplente. Retorna { situacao: \"Recusado\" }. Confirme no CloudBeaver: Status da assinatura = Inadimplente, Status da fatura = Falha.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/faturas/{% response 'body', 'req_b2_ativar', '$.identificadorDaPrimeiraFatura', 'never', 60 %}/pagamento",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -87
+    },
+    {
+      "_id": "req_b4_trocar_inadimplente",
+      "_type": "request",
+      "parentId": "fld_cenario_b",
+      "name": "2.5 Tentar trocar o plano da inadimplente (422)",
+      "description": "O dominio rejeita: so uma assinatura ATIVA troca de plano. Esperado 422 com a lista de erros. Prova que a borda so traduz — quem barra e o dominio.",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_b1_criar_assinatura', '$.identificador', 'never', 60 %}/troca-de-plano",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"identificadorDoNovoPlano\": \"{{ _.planoEssencial }}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -86
+    },
+    {
+      "_id": "fld_troca",
+      "_type": "request_group",
+      "parentId": "wrk_gestor_assinaturas",
+      "name": "03 — Troca de Plano (reprecifica fatura em aberto)",
+      "description": "Cria um plano de 30,00 com trial, ativa (fatura de 30,00 em aberto) e troca para o Plano Profissional (99,90). A fatura em aberto e reprecificada para 99,90 (RN-04). Confirme no CloudBeaver.",
+      "metaSortKey": -80
+    },
+    {
+      "_id": "req_t0_criar_plano_30",
+      "_type": "request",
+      "parentId": "fld_troca",
+      "name": "3.1 Cadastrar plano de 30,00 com trial",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/planos",
+      "description": "Plano base da troca. Retorna { identificador }.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Plano Demo Troca\",\n  \"valor\": 30.00,\n  \"moeda\": \"BRL\",\n  \"cicloDeCobranca\": \"Mensal\",\n  \"periodoDeTrialEmDias\": 14\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -80
+    },
+    {
+      "_id": "req_t1_criar_assinatura",
+      "_type": "request",
+      "parentId": "fld_troca",
+      "name": "3.2 Criar assinatura nesse plano",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas",
+      "description": "Empresa Alfa no plano de 30,00. Nasce em Trial.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"identificadorDoCliente\": \"{{ _.clienteAlfa }}\",\n  \"identificadorDoPlano\": \"{% response 'body', 'req_t0_criar_plano_30', '$.identificador', 'never', 60 %}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -79
+    },
+    {
+      "_id": "req_t2_ativar",
+      "_type": "request",
+      "parentId": "fld_troca",
+      "name": "3.3 Ativar (fatura de 30,00 em aberto)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_t1_criar_assinatura', '$.identificador', 'never', 60 %}/ativacao",
+      "description": "Trial -> Ativa. Fatura de 30,00 fica em aberto (nao vamos pagar).",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -78
+    },
+    {
+      "_id": "req_t3_trocar",
+      "_type": "request",
+      "parentId": "fld_troca",
+      "name": "3.4 Trocar para o Plano Profissional (99,90)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_t1_criar_assinatura', '$.identificador', 'never', 60 %}/troca-de-plano",
+      "description": "Troca aprovada (mesma moeda, plano diferente, assinatura ativa). 204. A fatura de 30,00 em aberto vira 99,90 no banco (RN-04). Confirme no CloudBeaver.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"identificadorDoNovoPlano\": \"{{ _.planoProfissionalTrial }}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -77
+    },
+    {
+      "_id": "fld_cancel",
+      "_type": "request_group",
+      "parentId": "wrk_gestor_assinaturas",
+      "name": "04 — Cancelamento (agendado e imediato)",
+      "description": "Cria uma assinatura ativa e demonstra as duas modalidades do RF-16.",
+      "metaSortKey": -70
+    },
+    {
+      "_id": "req_c1_criar_assinatura",
+      "_type": "request",
+      "parentId": "fld_cancel",
+      "name": "4.1 Criar assinatura (Plano Essencial, ativa)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas",
+      "description": "Plano Essencial (49,90, sem trial). Nasce Ativa com cobranca imediata.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"identificadorDoCliente\": \"{{ _.clienteAlfa }}\",\n  \"identificadorDoPlano\": \"{{ _.planoEssencial }}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -70
+    },
+    {
+      "_id": "req_c2_cancelar_agendado",
+      "_type": "request",
+      "parentId": "fld_cancel",
+      "name": "4.2 Cancelar ao fim do periodo (agendado)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_c1_criar_assinatura', '$.identificador', 'never', 60 %}/cancelamento",
+      "description": "204. A assinatura CONTINUA Ativa, com DataDeCancelamentoAgendado preenchida (mantem acesso ate o fim do ciclo). Confirme no CloudBeaver.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"modalidade\": \"AoFimDoPeriodoVigente\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -69
+    },
+    {
+      "_id": "req_c3_cancelar_imediato",
+      "_type": "request",
+      "parentId": "fld_cancel",
+      "name": "4.3 Cancelar imediatamente",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_c1_criar_assinatura', '$.identificador', 'never', 60 %}/cancelamento",
+      "description": "204. Transicao imediata para Cancelada (estado terminal). O cancelamento imediato vence o agendamento anterior.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"modalidade\": \"Imediato\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -68
+    },
+    {
+      "_id": "fld_erros",
+      "_type": "request_group",
+      "parentId": "wrk_gestor_assinaturas",
+      "name": "05 — Erros de dominio e de contrato",
+      "description": "Casos negativos que mostram o dominio protegendo o sistema e a traducao Resultado -> HTTP.",
+      "metaSortKey": -60
+    },
+    {
+      "_id": "req_e1_plano_invalido",
+      "_type": "request",
+      "parentId": "fld_erros",
+      "name": "5.1 Cadastrar plano invalido (422 com erros combinados)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/planos",
+      "description": "Nome curto E preco zero: o Resultado.Combinar acumula TODOS os erros numa unica resposta 422 — a diferenca pratica para uma excecao que para no primeiro.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"AB\",\n  \"valor\": 0,\n  \"moeda\": \"BRL\",\n  \"cicloDeCobranca\": \"Mensal\",\n  \"periodoDeTrialEmDias\": 0\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -60
+    },
+    {
+      "_id": "req_e2_cliente_inexistente",
+      "_type": "request",
+      "parentId": "fld_erros",
+      "name": "5.2 Criar assinatura com cliente inexistente (404)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas",
+      "description": "O Application Service carrega o cliente e, ao receber Sucesso(null) do repositorio, decide o erro de negocio: 404 cliente nao encontrado.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"identificadorDoCliente\": \"{{ _.clienteInexistente }}\",\n  \"identificadorDoPlano\": \"{{ _.planoEssencial }}\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -59
+    },
+    {
+      "_id": "req_e3_cliente_email_invalido",
+      "_type": "request",
+      "parentId": "fld_erros",
+      "name": "5.3 Cadastrar cliente com e-mail invalido (422)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/clientes",
+      "description": "O objeto de valor Email se recusa a existir invalido — o erro sobe como 422 sem ecoar o valor digitado.",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"nome\": \"Empresa Gama\",\n  \"email\": \"isto-nao-e-um-email\"\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -58
+    }
+  ]
+}
