@@ -15,9 +15,4 @@ public sealed class RelogioFixo : IRelogioDoSistema
     {
         return _dataAtual;
     }
-
-    public DateTimeOffset ObterInstanteAtual()
-    {
-        return new DateTimeOffset(_dataAtual.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-    }
 }

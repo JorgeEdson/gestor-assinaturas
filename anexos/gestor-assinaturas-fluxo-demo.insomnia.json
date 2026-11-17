@@ -9,7 +9,7 @@
       "_type": "workspace",
       "parentId": null,
       "name": "Gestor Assinaturas — Fluxo da Demo",
-      "description": "Collection de demonstracao da Onion Architecture. Rode os folders na ordem; cada request encadeia o id da resposta anterior. Cenarios: A (ativacao de trial + pagamento aprovado), B (cobranca recusada -> inadimplencia), Troca de plano, Cancelamento e Erros de dominio. Observacao: a reativacao ponta a ponta (RN-05) nao e encadeavel pela API atual porque exige uma nova fatura em aberto (RF-09 renovacao e [DESAFIO]); ela esta coberta pelo teste de unidade DeveReativarAssinaturaInadimplenteQuandoOPagamentoEhAprovado. Pre-requisito: docker compose up com o seed aplicado."
+      "description": "Collection de demonstracao da Onion Architecture. Rode os folders na ordem; cada request encadeia o id da resposta anterior. Cenarios: A (ativacao de trial + pagamento aprovado), B (cobranca recusada -> inadimplencia -> recobranca -> reativacao), Troca de plano, Cancelamento e Erros de dominio. Pre-requisito: docker compose up com o seed aplicado."
     },
     {
       "_id": "env_base",
@@ -81,8 +81,8 @@
       "_id": "fld_cenario_b",
       "_type": "request_group",
       "parentId": "wrk_gestor_assinaturas",
-      "name": "02 — Cenario B: Cobranca Recusada -> Inadimplencia",
-      "description": "Cria um plano de 49,99 COM trial (para encadear a fatura), ativa e paga -> gateway recusa (centavos ,99) -> fatura Falha e assinatura Inadimplente. Totalmente encadeado.",
+      "name": "02 — Cenario B: Cobranca Recusada -> Inadimplencia -> Reativacao",
+      "description": "Cria um plano de 49,99 COM trial (para encadear a fatura), ativa e paga -> gateway recusa a primeira cobranca (centavos ,99) -> fatura Falha e assinatura Inadimplente -> recobranca emite nova fatura -> pagamento aprovado reativa a assinatura (RN-05). Totalmente encadeado.",
       "metaSortKey": -90
     },
     {
@@ -159,6 +159,30 @@
         { "name": "Content-Type", "value": "application/json" }
       ],
       "metaSortKey": -86
+    },
+    {
+      "_id": "req_b5_recobrar",
+      "_type": "request",
+      "parentId": "fld_cenario_b",
+      "name": "2.6 Emitir fatura de recobranca da inadimplente",
+      "description": "ServicoRecobranca emite uma nova fatura em aberto para a assinatura inadimplente (rejeita se ja houver fatura em aberto).",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/assinaturas/{% response 'body', 'req_b1_criar_assinatura', '$.identificador', 'never', 60 %}/recobranca",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -85
+    },
+    {
+      "_id": "req_b6_pagar_recobranca",
+      "_type": "request",
+      "parentId": "fld_cenario_b",
+      "name": "2.7 Pagar a fatura de recobranca (APROVADO, reativa)",
+      "description": "O gateway simulado so recusa a primeira cobranca ,99 de cada assinatura. Pagamento aprovado: fatura Paga e ServicoReativacao devolve a assinatura para Ativa (RN-05).",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/faturas/{% response 'body', 'req_b5_recobrar', '$.identificadorDaFaturaDeRecobranca', 'never', 60 %}/pagamento",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -84
     },
     {
       "_id": "fld_troca",

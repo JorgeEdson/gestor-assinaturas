@@ -2,30 +2,52 @@ namespace GestorAssinaturas.Dominio.Comum;
 
 public class Resultado
 {
-    protected Resultado(IEnumerable<string>? erros = null)
+    protected Resultado(IEnumerable<string>? erros, TipoDeFalha tipoDeFalha)
     {
         Erros = erros?.ToList();
+        TipoDeFalha = EhSucesso ? TipoDeFalha.Nenhuma : tipoDeFalha;
     }
 
     public IEnumerable<string>? Erros { get; }
+
+    public TipoDeFalha TipoDeFalha { get; }
 
     public bool EhSucesso => Erros is null || !Erros.Any();
 
     public bool EhFalha => !EhSucesso;
 
+    public bool EhRecursoNaoEncontrado => TipoDeFalha == TipoDeFalha.RecursoNaoEncontrado;
+
     public static Resultado Sucesso()
     {
-        return new Resultado();
+        return new Resultado(null, TipoDeFalha.Nenhuma);
     }
 
     public static Resultado Falha(IEnumerable<string> erros)
     {
-        return new Resultado(erros);
+        return new Resultado(erros, TipoDeFalha.ViolacaoDeRegraDeNegocio);
     }
 
     public static Resultado Falha(string erro)
     {
-        return new Resultado(new List<string> { erro });
+        return new Resultado(new List<string> { erro }, TipoDeFalha.ViolacaoDeRegraDeNegocio);
+    }
+
+    public static Resultado NaoEncontrado(string erro)
+    {
+        return new Resultado(new List<string> { erro }, TipoDeFalha.RecursoNaoEncontrado);
+    }
+
+    public static Resultado FalhaAPartirDe(Resultado resultadoComFalha)
+    {
+        ArgumentNullException.ThrowIfNull(resultadoComFalha);
+
+        if (resultadoComFalha.EhSucesso)
+        {
+            throw new InvalidOperationException("Não é possível propagar a falha de um resultado de sucesso.");
+        }
+
+        return new Resultado(resultadoComFalha.Erros, resultadoComFalha.TipoDeFalha);
     }
 
     public static Resultado FalhaQuando(bool condicaoDeViolacao, string erro)
@@ -53,7 +75,8 @@ public class Resultado<T> : Resultado
 {
     private readonly T? _instancia;
 
-    private Resultado(T? instancia = default, List<string>? erros = null) : base(erros)
+    private Resultado(T? instancia, IEnumerable<string>? erros, TipoDeFalha tipoDeFalha)
+        : base(erros, tipoDeFalha)
     {
         _instancia = instancia;
     }
@@ -71,86 +94,35 @@ public class Resultado<T> : Resultado
         }
     }
 
-    public static Resultado<T> Sucesso(T? instancia = default)
+    public static Resultado<T> Sucesso(T instancia)
     {
-        return new Resultado<T>(instancia);
+        return new Resultado<T>(instancia, null, TipoDeFalha.Nenhuma);
     }
 
     public static new Resultado<T> Falha(string erro)
     {
-        return new Resultado<T>(default, new List<string> { erro });
+        return new Resultado<T>(default, new List<string> { erro }, TipoDeFalha.ViolacaoDeRegraDeNegocio);
     }
 
     public static new Resultado<T> Falha(IEnumerable<string> erros)
     {
-        return new Resultado<T>(default, erros.ToList());
+        return new Resultado<T>(default, erros, TipoDeFalha.ViolacaoDeRegraDeNegocio);
     }
 
-    public static Resultado<T> Tentar(Func<T> funcao)
+    public static new Resultado<T> NaoEncontrado(string erro)
     {
-        try
-        {
-            return Sucesso(funcao());
-        }
-        catch (Exception excecao)
-        {
-            return Falha(excecao.Message);
-        }
+        return new Resultado<T>(default, new List<string> { erro }, TipoDeFalha.RecursoNaoEncontrado);
     }
 
-    public static async Task<Resultado<T>> TentarAsync(Func<Task<Resultado<T>>> funcao)
+    public static new Resultado<T> FalhaAPartirDe(Resultado resultadoComFalha)
     {
-        try
+        ArgumentNullException.ThrowIfNull(resultadoComFalha);
+
+        if (resultadoComFalha.EhSucesso)
         {
-            return await funcao();
-        }
-        catch (Exception excecao)
-        {
-            return Falha(excecao.Message);
-        }
-    }
-
-    public Resultado<object> ComFalha()
-    {
-        return Resultado<object>.Falha(Erros!);
-    }
-
-    public static Resultado<T[]> Combinar(params Resultado<T>[] resultados)
-    {
-        var falhas = resultados.Where(resultado => resultado.EhFalha).ToList();
-
-        if (falhas.Count > 0)
-        {
-            var erros = falhas
-                .SelectMany(resultado => resultado.Erros!)
-                .ToList();
-
-            return Resultado<T[]>.Falha(erros);
+            throw new InvalidOperationException("Não é possível propagar a falha de um resultado de sucesso.");
         }
 
-        var instancias = resultados
-            .Select(resultado => resultado.Instancia)
-            .ToArray();
-
-        return Resultado<T[]>.Sucesso(instancias);
+        return new Resultado<T>(default, resultadoComFalha.Erros, resultadoComFalha.TipoDeFalha);
     }
-
-    public static async Task<Resultado<T[]>> CombinarAsync(params Task<Resultado<T>>[] resultados)
-    {
-        var resultadosResolvidos = await Task.WhenAll(resultados);
-
-        return Combinar(resultadosResolvidos);
-    }
-}
-
-public sealed record ResultadoPaginado<T>(
-    IReadOnlyCollection<T> Itens,
-    int NumeroPagina,
-    int TamanhoPagina,
-    int TotalRegistros)
-{
-    public int TotalPaginas =>
-        TotalRegistros <= 0
-            ? 0
-            : (int)Math.Ceiling(TotalRegistros / (double)TamanhoPagina);
 }

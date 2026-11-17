@@ -1,5 +1,6 @@
 using GestorAssinaturas.Dominio.Comum;
 using GestorAssinaturas.Dominio.Faturas;
+using GestorAssinaturas.Dominio.ObjetosDeValor;
 using GestorAssinaturas.Dominio.Planos;
 
 namespace GestorAssinaturas.Dominio.Assinaturas;
@@ -20,28 +21,39 @@ public sealed class Assinatura : Entidade
 
     private Assinatura()
     {
-        Plano = null!;
+        ValorDaAssinatura = null!;
+        CicloDeCobranca = null!;
     }
 
     private Assinatura(
         Guid identificador,
         Guid identificadorDoCliente,
-        Plano plano,
+        Guid identificadorDoPlano,
+        Dinheiro valorDaAssinatura,
+        CicloDeCobranca cicloDeCobranca,
         StatusAssinatura status,
         DateOnly dataDeInicio,
-        DateOnly? dataDeTerminoDoTrial)
+        DateOnly? dataDeTerminoDoTrial,
+        DateOnly? dataDeInicioDaCobranca)
         : base(identificador)
     {
         IdentificadorDoCliente = identificadorDoCliente;
-        Plano = plano;
+        IdentificadorDoPlano = identificadorDoPlano;
+        ValorDaAssinatura = valorDaAssinatura;
+        CicloDeCobranca = cicloDeCobranca;
         Status = status;
         DataDeInicio = dataDeInicio;
         DataDeTerminoDoTrial = dataDeTerminoDoTrial;
+        DataDeInicioDaCobranca = dataDeInicioDaCobranca;
     }
 
     public Guid IdentificadorDoCliente { get; }
 
-    public Plano Plano { get; private set; }
+    public Guid IdentificadorDoPlano { get; private set; }
+
+    public Dinheiro ValorDaAssinatura { get; private set; }
+
+    public CicloDeCobranca CicloDeCobranca { get; private set; }
 
     public StatusAssinatura Status { get; private set; }
 
@@ -49,9 +61,9 @@ public sealed class Assinatura : Entidade
 
     public DateOnly? DataDeTerminoDoTrial { get; }
 
-    public DateOnly? DataDeCancelamentoAgendado { get; private set; }
+    public DateOnly? DataDeInicioDaCobranca { get; private set; }
 
-    public Guid IdentificadorDoPlano => Plano.Identificador;
+    public DateOnly? DataDeCancelamentoAgendado { get; private set; }
 
     public bool PossuiCancelamentoAgendado => DataDeCancelamentoAgendado is not null;
 
@@ -78,10 +90,13 @@ public sealed class Assinatura : Entidade
             var assinaturaEmTrial = new Assinatura(
                 identificador,
                 identificadorDoCliente,
-                plano,
+                plano.Identificador,
+                plano.Preco,
+                plano.CicloDeCobranca,
                 StatusAssinatura.Trial,
                 dataDeInicio,
-                dataDeTerminoDoTrial);
+                dataDeTerminoDoTrial,
+                dataDeInicioDaCobranca: null);
 
             return Resultado<Assinatura>.Sucesso(assinaturaEmTrial);
         }
@@ -89,10 +104,13 @@ public sealed class Assinatura : Entidade
         var assinaturaAtiva = new Assinatura(
             identificador,
             identificadorDoCliente,
-            plano,
+            plano.Identificador,
+            plano.Preco,
+            plano.CicloDeCobranca,
             StatusAssinatura.Ativa,
             dataDeInicio,
-            dataDeTerminoDoTrial: null);
+            dataDeTerminoDoTrial: null,
+            dataDeInicioDaCobranca: dataDeInicio);
 
         return Resultado<Assinatura>.Sucesso(assinaturaAtiva);
     }
@@ -127,9 +145,23 @@ public sealed class Assinatura : Entidade
         return EstaAtiva() && DataDeTerminoDoTrial is null;
     }
 
-    public Resultado Ativar()
+    public Resultado Ativar(DateOnly dataDeAtivacao)
     {
-        return Transicionar(StatusAssinatura.Ativa);
+        if (dataDeAtivacao < DataDeInicio)
+        {
+            return Resultado.Falha("A data de ativação não pode ser anterior ao início da assinatura.");
+        }
+
+        var resultadoDaAtivacao = Transicionar(StatusAssinatura.Ativa);
+
+        if (resultadoDaAtivacao.EhFalha)
+        {
+            return resultadoDaAtivacao;
+        }
+
+        DataDeInicioDaCobranca = dataDeAtivacao;
+
+        return Resultado.Sucesso();
     }
 
     public Resultado RegistrarInadimplencia()
@@ -145,6 +177,17 @@ public sealed class Assinatura : Entidade
     public Resultado Suspender()
     {
         return Transicionar(StatusAssinatura.Suspensa);
+    }
+
+    public Resultado Cancelar(ModalidadeDeCancelamento modalidade, DateOnly dataDeReferencia)
+    {
+        return modalidade switch
+        {
+            ModalidadeDeCancelamento.Imediato => CancelarImediatamente(),
+            ModalidadeDeCancelamento.AoFimDoPeriodoVigente =>
+                AgendarCancelamentoAoFimDoPeriodo(CalcularDataDeFimDoPeriodoVigente(dataDeReferencia)),
+            _ => Resultado.Falha($"Modalidade de cancelamento não suportada: {modalidade}.")
+        };
     }
 
     public Resultado CancelarImediatamente()
@@ -206,6 +249,26 @@ public sealed class Assinatura : Entidade
         return Transicionar(StatusAssinatura.Cancelada);
     }
 
+    public DateOnly CalcularDataDeFimDoPeriodoVigente(DateOnly dataDeReferencia)
+    {
+        if (EstaEmTrial() && DataDeTerminoDoTrial is not null)
+        {
+            return DataDeTerminoDoTrial.Value;
+        }
+
+        var dataDeInicioDosCiclosDeCobranca = DataDeInicioDaCobranca ?? DataDeInicio;
+        var numeroDoCiclo = 1;
+        var dataDeFimDoCiclo = CicloDeCobranca.CalcularDataDeFimDoCiclo(dataDeInicioDosCiclosDeCobranca, numeroDoCiclo);
+
+        while (dataDeFimDoCiclo <= dataDeReferencia)
+        {
+            numeroDoCiclo++;
+            dataDeFimDoCiclo = CicloDeCobranca.CalcularDataDeFimDoCiclo(dataDeInicioDosCiclosDeCobranca, numeroDoCiclo);
+        }
+
+        return dataDeFimDoCiclo;
+    }
+
     public Resultado TrocarPlano(Plano novoPlano)
     {
         if (novoPlano is null)
@@ -219,20 +282,44 @@ public sealed class Assinatura : Entidade
                 $"Somente uma assinatura ativa pode trocar de plano. Status atual: {Status}.");
         }
 
-        if (novoPlano.Identificador == Plano.Identificador)
+        if (novoPlano.Identificador == IdentificadorDoPlano)
         {
             return Resultado.Falha("O novo plano deve ser diferente do plano atual da assinatura.");
         }
 
-        if (!novoPlano.Preco.PossuiMesmaMoedaQue(Plano.Preco))
+        if (!novoPlano.Preco.PossuiMesmaMoedaQue(ValorDaAssinatura))
         {
             return Resultado.Falha(
-                $"A troca de plano não pode alterar a moeda da assinatura: de {Plano.Preco.Moeda} para {novoPlano.Preco.Moeda}.");
+                $"A troca de plano não pode alterar a moeda da assinatura: de {ValorDaAssinatura.Moeda} para {novoPlano.Preco.Moeda}.");
         }
 
-        Plano = novoPlano;
+        IdentificadorDoPlano = novoPlano.Identificador;
+        ValorDaAssinatura = novoPlano.Preco;
+        CicloDeCobranca = novoPlano.CicloDeCobranca;
 
         return Resultado.Sucesso();
+    }
+
+    public Resultado VerificarSePodeReceberPagamentoDa(Fatura fatura)
+    {
+        if (fatura is null)
+        {
+            return Resultado.Falha("A fatura é obrigatória para o registro do pagamento.");
+        }
+
+        if (fatura.IdentificadorDaAssinatura != Identificador)
+        {
+            return Resultado.Falha("A fatura informada não pertence à assinatura.");
+        }
+
+        if (EstaCancelada())
+        {
+            return Resultado.Falha("Uma assinatura cancelada não aceita novo pagamento.");
+        }
+
+        return Resultado.FalhaQuando(
+            !fatura.EstaAberta(),
+            $"Somente uma fatura em aberto pode receber pagamento. Status atual da fatura: {fatura.Status}.");
     }
 
     public Resultado<Fatura> GerarFaturaDeCobranca(Guid identificadorDaFatura, DateOnly dataDeVencimento)
@@ -248,7 +335,18 @@ public sealed class Assinatura : Entidade
                 $"Somente uma assinatura ativa pode gerar cobranças. Status atual: {Status}.");
         }
 
-        return Fatura.Emitir(identificadorDaFatura, Identificador, Plano.Preco, dataDeVencimento);
+        return Fatura.Emitir(identificadorDaFatura, Identificador, ValorDaAssinatura, dataDeVencimento);
+    }
+
+    public Resultado<Fatura> EmitirFaturaDeRecobranca(Guid identificadorDaFatura, DateOnly dataDeVencimento)
+    {
+        if (!EstaInadimplente())
+        {
+            return Resultado<Fatura>.Falha(
+                $"Somente uma assinatura inadimplente pode receber uma fatura de recobrança. Status atual: {Status}.");
+        }
+
+        return Fatura.Emitir(identificadorDaFatura, Identificador, ValorDaAssinatura, dataDeVencimento);
     }
 
     public override string ToString()

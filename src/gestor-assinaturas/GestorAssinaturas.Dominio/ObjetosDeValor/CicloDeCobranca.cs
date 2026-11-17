@@ -38,6 +38,16 @@ public sealed class CicloDeCobranca : ObjetoDeValor
         return dataDeReferencia.AddMonths(QuantidadeDeMeses);
     }
 
+    public DateOnly CalcularDataDeFimDoCiclo(DateOnly dataDeInicioDosCiclos, int numeroDoCiclo)
+    {
+        if (numeroDoCiclo < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(numeroDoCiclo), "O número do ciclo deve ser maior ou igual a um.");
+        }
+
+        return dataDeInicioDosCiclos.AddMonths(QuantidadeDeMeses * numeroDoCiclo);
+    }
+
     public override string ToString()
     {
         return Tipo.ToString();

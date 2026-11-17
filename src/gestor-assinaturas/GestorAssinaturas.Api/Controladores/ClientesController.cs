@@ -10,9 +10,9 @@ public sealed record CadastrarClienteRequisicao(
 [Route("api/clientes")]
 public sealed class ClientesController : ControladorDaApi
 {
-    private readonly CadastrarClienteApplicationService _cadastrarCliente;
+    private readonly CadastrarClienteServicoDeAplicacao _cadastrarCliente;
 
-    public ClientesController(CadastrarClienteApplicationService cadastrarCliente)
+    public ClientesController(CadastrarClienteServicoDeAplicacao cadastrarCliente)
     {
         ArgumentNullException.ThrowIfNull(cadastrarCliente);
 
@@ -22,11 +22,11 @@ public sealed class ClientesController : ControladorDaApi
     [HttpPost]
     public async Task<IActionResult> CadastrarAsync(
         [FromBody] CadastrarClienteRequisicao requisicao,
-        CancellationToken cancellationToken)
+        CancellationToken tokenDeCancelamento)
     {
         var entrada = new CadastrarClienteEntrada(requisicao.Nome, requisicao.Email);
 
-        var resultado = await _cadastrarCliente.ExecutarAsync(entrada, cancellationToken);
+        var resultado = await _cadastrarCliente.ExecutarAsync(entrada, tokenDeCancelamento);
 
         if (resultado.EhFalha)
         {

@@ -1,6 +1,5 @@
-using GestorAssinaturas.Aplicacao.Portas.Persistencia;
-using GestorAssinaturas.Dominio.Comum;
 using GestorAssinaturas.Dominio.Planos;
+using GestorAssinaturas.Dominio.Repositorios;
 
 namespace GestorAssinaturas.Aplicacao.Testes.Dobras;
 
@@ -10,16 +9,16 @@ public sealed class RepositorioPlanoEmMemoria : IRepositorioPlano
 
     public IReadOnlyCollection<Plano> Planos => _planos.Values.ToList();
 
-    public Task<Resultado<Plano>> ObterPorIdentificadorAsync(
+    public Task<Plano?> ObterPorIdentificadorAsync(
         Guid identificador,
-        CancellationToken cancellationToken = default)
+        CancellationToken tokenDeCancelamento = default)
     {
-        return _planos.TryGetValue(identificador, out var plano)
-            ? Task.FromResult(Resultado<Plano>.Sucesso(plano))
-            : Task.FromResult(Resultado<Plano>.Sucesso());
+        _planos.TryGetValue(identificador, out var plano);
+
+        return Task.FromResult(plano);
     }
 
-    public Task AdicionarAsync(Plano plano, CancellationToken cancellationToken = default)
+    public Task AdicionarAsync(Plano plano, CancellationToken tokenDeCancelamento = default)
     {
         _planos[plano.Identificador] = plano;
 

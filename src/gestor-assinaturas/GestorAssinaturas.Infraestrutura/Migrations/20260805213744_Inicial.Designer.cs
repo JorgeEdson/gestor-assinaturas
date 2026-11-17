@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GestorAssinaturas.Infraestrutura.Migrations
 {
-    [DbContext(typeof(GestorAssinaturasDbContext))]
+    [DbContext(typeof(ContextoDeDados))]
     [Migration("20260805213744_Inicial")]
     partial class Inicial
     {

@@ -12,13 +12,19 @@ public class CancelarAssinaturaServicoDeAplicacaoTestes
 {
     private static readonly DateOnly DataDeInicio = new(2026, 8, 5);
 
-    private readonly UnitOfWorkEmMemoria _unitOfWork = new();
+    private readonly UnidadeDeTrabalhoEmMemoria _unidadeDeTrabalho = new();
 
-    private CancelarAssinaturaApplicationService CriarServico()
+    private CancelarAssinaturaServicoDeAplicacao CriarServico()
     {
-        return new CancelarAssinaturaApplicationService(
-            _unitOfWork,
-            NullLogger<CancelarAssinaturaApplicationService>.Instance);
+        return CriarServico(DataDeInicio);
+    }
+
+    private CancelarAssinaturaServicoDeAplicacao CriarServico(DateOnly dataAtual)
+    {
+        return new CancelarAssinaturaServicoDeAplicacao(
+            _unidadeDeTrabalho,
+            new RelogioFixo(dataAtual),
+            NullLogger<CancelarAssinaturaServicoDeAplicacao>.Instance);
     }
 
     private static Plano CriarPlanoMensalSemTrial()
@@ -35,7 +41,7 @@ public class CancelarAssinaturaServicoDeAplicacaoTestes
     {
         var assinatura = Assinatura.Criar(Guid.NewGuid(), Guid.NewGuid(), CriarPlanoMensalSemTrial(), DataDeInicio).Instancia;
 
-        _unitOfWork.AssinaturaEmMemoria.Semear(assinatura);
+        _unidadeDeTrabalho.AssinaturaEmMemoria.Semear(assinatura);
 
         return assinatura;
     }
@@ -51,7 +57,7 @@ public class CancelarAssinaturaServicoDeAplicacaoTestes
 
         Assert.True(resultado.EhSucesso);
         Assert.True(assinatura.EstaCancelada());
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -67,7 +73,20 @@ public class CancelarAssinaturaServicoDeAplicacaoTestes
         Assert.True(assinatura.EstaAtiva());
         Assert.True(assinatura.PossuiCancelamentoAgendado);
         Assert.Equal(new DateOnly(2026, 9, 5), assinatura.DataDeCancelamentoAgendado);
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
+    }
+
+    [Fact]
+    public async Task DeveAgendarCancelamentoParaOFimDoCicloVigenteQuandoAAssinaturaJaPassouDoPrimeiroCiclo()
+    {
+        var assinatura = SemearAssinaturaAtiva();
+        var servico = CriarServico(new DateOnly(2026, 10, 20));
+
+        var resultado = await servico.ExecutarAsync(
+            new CancelarAssinaturaEntrada(assinatura.Identificador, ModalidadeDeCancelamento.AoFimDoPeriodoVigente));
+
+        Assert.True(resultado.EhSucesso);
+        Assert.Equal(new DateOnly(2026, 11, 5), assinatura.DataDeCancelamentoAgendado);
     }
 
     [Fact]
@@ -79,7 +98,8 @@ public class CancelarAssinaturaServicoDeAplicacaoTestes
             new CancelarAssinaturaEntrada(Guid.NewGuid(), ModalidadeDeCancelamento.Imediato));
 
         Assert.True(resultado.EhFalha);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.True(resultado.EhRecursoNaoEncontrado);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -94,7 +114,7 @@ public class CancelarAssinaturaServicoDeAplicacaoTestes
 
         Assert.True(resultado.EhFalha);
         Assert.True(assinatura.EstaInadimplente());
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -109,11 +129,11 @@ public class CancelarAssinaturaServicoDeAplicacaoTestes
 
         Assert.True(resultado.EhFalha);
         Assert.False(assinatura.PossuiCancelamentoAgendado);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
-    public async Task DeveRetornarFalhaParaComandoNulo()
+    public async Task DeveRetornarFalhaParaEntradaNula()
     {
         var servico = CriarServico();
 

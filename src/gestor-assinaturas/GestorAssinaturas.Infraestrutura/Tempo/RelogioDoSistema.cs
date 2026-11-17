@@ -8,9 +8,4 @@ public sealed class RelogioDoSistema : IRelogioDoSistema
     {
         return DateOnly.FromDateTime(DateTime.UtcNow);
     }
-
-    public DateTimeOffset ObterInstanteAtual()
-    {
-        return DateTimeOffset.UtcNow;
-    }
 }

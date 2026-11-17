@@ -105,10 +105,47 @@ public class AssinaturaTestes
     {
         var assinatura = CriarAssinaturaComTrial();
 
-        var resultado = assinatura.Ativar();
+        var resultado = assinatura.Ativar(DataDeInicio);
 
         Assert.True(resultado.EhSucesso);
         Assert.True(assinatura.EstaAtiva());
+    }
+
+    [Fact]
+    public void DeveRegistrarADataDeInicioDaCobrancaAoAtivarUmaAssinaturaEmTrial()
+    {
+        var assinatura = CriarAssinaturaComTrial();
+        var dataDeAtivacao = DataDeInicio.AddDays(10);
+
+        var resultado = assinatura.Ativar(dataDeAtivacao);
+
+        Assert.True(resultado.EhSucesso);
+        Assert.Equal(dataDeAtivacao, assinatura.DataDeInicioDaCobranca);
+    }
+
+    [Fact]
+    public void DeveRejeitarAtivacaoComDataAnteriorAoInicioDaAssinatura()
+    {
+        var assinatura = CriarAssinaturaComTrial();
+
+        var resultado = assinatura.Ativar(DataDeInicio.AddDays(-1));
+
+        Assert.True(resultado.EhFalha);
+        Assert.True(assinatura.EstaEmTrial());
+        Assert.Null(assinatura.DataDeInicioDaCobranca);
+    }
+
+    [Fact]
+    public void DeveGuardarOPrecoEOCicloContratadosSemReferenciarOAgregadoPlano()
+    {
+        var plano = PlanoSemTrial;
+
+        var assinatura = Assinatura.Criar(IdentificadorDaAssinatura, IdentificadorDoCliente, plano, DataDeInicio).Instancia;
+
+        Assert.Equal(plano.Identificador, assinatura.IdentificadorDoPlano);
+        Assert.Equal(plano.Preco, assinatura.ValorDaAssinatura);
+        Assert.Equal(plano.CicloDeCobranca, assinatura.CicloDeCobranca);
+        Assert.Equal(DataDeInicio, assinatura.DataDeInicioDaCobranca);
     }
 
     [Fact]
@@ -220,7 +257,7 @@ public class AssinaturaTestes
         var assinatura = CriarAssinaturaSemTrial();
         assinatura.CancelarImediatamente();
 
-        var resultadoDaAtivacao = assinatura.Ativar();
+        var resultadoDaAtivacao = assinatura.Ativar(DataDeInicio);
         var resultadoDaInadimplencia = assinatura.RegistrarInadimplencia();
 
         Assert.True(resultadoDaAtivacao.EhFalha);
@@ -243,8 +280,54 @@ public class AssinaturaTestes
 
         Assert.Equal(identificadorDaFatura, fatura.Identificador);
         Assert.Equal(assinatura.Identificador, fatura.IdentificadorDaAssinatura);
-        Assert.Equal(assinatura.Plano.Preco, fatura.Valor);
+        Assert.Equal(assinatura.ValorDaAssinatura, fatura.Valor);
         Assert.Equal(StatusFatura.Aberta, fatura.Status);
+    }
+
+    [Fact]
+    public void DeveEmitirFaturaDeRecobrancaParaAssinaturaInadimplente()
+    {
+        var assinatura = CriarAssinaturaSemTrial();
+        assinatura.RegistrarInadimplencia();
+
+        var resultado = assinatura.EmitirFaturaDeRecobranca(Guid.NewGuid(), new DateOnly(2026, 8, 12));
+
+        Assert.True(resultado.EhSucesso);
+        Assert.True(resultado.Instancia.EstaAberta());
+        Assert.Equal(assinatura.ValorDaAssinatura, resultado.Instancia.Valor);
+    }
+
+    [Fact]
+    public void DeveRejeitarFaturaDeRecobrancaParaAssinaturaQueNaoEstaInadimplente()
+    {
+        var assinatura = CriarAssinaturaSemTrial();
+
+        var resultado = assinatura.EmitirFaturaDeRecobranca(Guid.NewGuid(), new DateOnly(2026, 8, 12));
+
+        Assert.True(resultado.EhFalha);
+    }
+
+    [Fact]
+    public void DevePermitirPagamentoDeFaturaEmAbertoDaPropriaAssinatura()
+    {
+        var assinatura = CriarAssinaturaSemTrial();
+        var fatura = assinatura.GerarFaturaDeCobranca(Guid.NewGuid(), DataDeInicio).Instancia;
+
+        var resultado = assinatura.VerificarSePodeReceberPagamentoDa(fatura);
+
+        Assert.True(resultado.EhSucesso);
+    }
+
+    [Fact]
+    public void DeveRejeitarPagamentoDeFaturaQueNaoEstaEmAberto()
+    {
+        var assinatura = CriarAssinaturaSemTrial();
+        var fatura = assinatura.GerarFaturaDeCobranca(Guid.NewGuid(), DataDeInicio).Instancia;
+        fatura.MarcarComoPaga();
+
+        var resultado = assinatura.VerificarSePodeReceberPagamentoDa(fatura);
+
+        Assert.True(resultado.EhFalha);
     }
 
     [Fact]

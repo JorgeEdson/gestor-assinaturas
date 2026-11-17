@@ -12,14 +12,14 @@ public class AtivarAssinaturaServicoDeAplicacaoTestes
 {
     private static readonly DateOnly DataAtual = new(2026, 8, 5);
 
-    private readonly UnitOfWorkEmMemoria _unitOfWork = new();
+    private readonly UnidadeDeTrabalhoEmMemoria _unidadeDeTrabalho = new();
 
-    private AtivarAssinaturaApplicationService CriarServico()
+    private AtivarAssinaturaServicoDeAplicacao CriarServico()
     {
-        return new AtivarAssinaturaApplicationService(
-            _unitOfWork,
+        return new AtivarAssinaturaServicoDeAplicacao(
+            _unidadeDeTrabalho,
             new RelogioFixo(DataAtual),
-            NullLogger<AtivarAssinaturaApplicationService>.Instance);
+            NullLogger<AtivarAssinaturaServicoDeAplicacao>.Instance);
     }
 
     private static Plano CriarPlano(int periodoDeTrialEmDias)
@@ -40,7 +40,7 @@ public class AtivarAssinaturaServicoDeAplicacaoTestes
             CriarPlano(periodoDeTrialEmDias),
             DataAtual).Instancia;
 
-        _unitOfWork.AssinaturaEmMemoria.Semear(assinatura);
+        _unidadeDeTrabalho.AssinaturaEmMemoria.Semear(assinatura);
 
         return assinatura;
     }
@@ -56,12 +56,13 @@ public class AtivarAssinaturaServicoDeAplicacaoTestes
 
         Assert.True(resultado.EhSucesso);
         Assert.True(assinatura.EstaAtiva());
+        Assert.Equal(DataAtual, assinatura.DataDeInicioDaCobranca);
 
-        var fatura = Assert.Single(_unitOfWork.FaturaEmMemoria.Faturas);
+        var fatura = Assert.Single(_unidadeDeTrabalho.FaturaEmMemoria.Faturas);
         Assert.Equal(assinatura.Identificador, fatura.IdentificadorDaAssinatura);
         Assert.Equal(resultado.Instancia, fatura.Identificador);
         Assert.True(fatura.EstaAberta());
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -73,8 +74,9 @@ public class AtivarAssinaturaServicoDeAplicacaoTestes
             new AtivarAssinaturaEntrada(Guid.NewGuid()));
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.FaturaEmMemoria.Faturas);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.True(resultado.EhRecursoNaoEncontrado);
+        Assert.Empty(_unidadeDeTrabalho.FaturaEmMemoria.Faturas);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -87,18 +89,18 @@ public class AtivarAssinaturaServicoDeAplicacaoTestes
             new AtivarAssinaturaEntrada(assinatura.Identificador));
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.FaturaEmMemoria.Faturas);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Empty(_unidadeDeTrabalho.FaturaEmMemoria.Faturas);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
-    public async Task DeveRetornarFalhaParaComandoNulo()
+    public async Task DeveRetornarFalhaParaEntradaNula()
     {
         var servico = CriarServico();
 
         var resultado = await servico.ExecutarAsync(null!);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.FaturaEmMemoria.Faturas);
+        Assert.Empty(_unidadeDeTrabalho.FaturaEmMemoria.Faturas);
     }
 }

@@ -1,6 +1,5 @@
-using GestorAssinaturas.Aplicacao.Portas.Persistencia;
 using GestorAssinaturas.Dominio.Assinaturas;
-using GestorAssinaturas.Dominio.Comum;
+using GestorAssinaturas.Dominio.Repositorios;
 
 namespace GestorAssinaturas.Aplicacao.Testes.Dobras;
 
@@ -15,16 +14,16 @@ public sealed class RepositorioAssinaturaEmMemoria : IRepositorioAssinatura
         _assinaturas[assinatura.Identificador] = assinatura;
     }
 
-    public Task<Resultado<Assinatura>> ObterPorIdentificadorAsync(
+    public Task<Assinatura?> ObterPorIdentificadorAsync(
         Guid identificador,
-        CancellationToken cancellationToken = default)
+        CancellationToken tokenDeCancelamento = default)
     {
-        return _assinaturas.TryGetValue(identificador, out var assinatura)
-            ? Task.FromResult(Resultado<Assinatura>.Sucesso(assinatura))
-            : Task.FromResult(Resultado<Assinatura>.Sucesso());
+        _assinaturas.TryGetValue(identificador, out var assinatura);
+
+        return Task.FromResult(assinatura);
     }
 
-    public Task AdicionarAsync(Assinatura assinatura, CancellationToken cancellationToken = default)
+    public Task AdicionarAsync(Assinatura assinatura, CancellationToken tokenDeCancelamento = default)
     {
         _assinaturas[assinatura.Identificador] = assinatura;
 

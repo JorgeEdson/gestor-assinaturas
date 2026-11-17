@@ -1,7 +1,6 @@
 using GestorAssinaturas.Aplicacao.Portas;
 using GestorAssinaturas.Aplicacao.Portas.Pagamentos;
-using GestorAssinaturas.Aplicacao.Portas.Persistencia;
-using GestorAssinaturas.Dominio.Assinaturas;
+using GestorAssinaturas.Dominio.Repositorios;
 using GestorAssinaturas.Infraestrutura.Pagamentos;
 using GestorAssinaturas.Infraestrutura.Persistencia;
 using GestorAssinaturas.Infraestrutura.Persistencia.Repositorios;
@@ -20,21 +19,28 @@ public static class InjecaoDeDependencia
         ArgumentNullException.ThrowIfNull(servicos);
         ArgumentException.ThrowIfNullOrWhiteSpace(cadeiaDeConexao);
 
-        servicos.AddDbContext<GestorAssinaturasDbContext>(opcoes => opcoes.UseSqlServer(cadeiaDeConexao));
+        servicos.AddDbContext<ContextoDeDados>(opcoes => opcoes.UseSqlServer(cadeiaDeConexao));
 
-        servicos.AddScoped<IRepositorioPlano, PlanoRepository>();
-        servicos.AddScoped<IRepositorioCliente, ClienteRepository>();
-        servicos.AddScoped<IRepositorioAssinatura, AssinaturaRepository>();
-        servicos.AddScoped<IRepositorioFatura, FaturaRepository>();
-        servicos.AddScoped<IUnitOfWork, UnitOfWork>();
+        servicos.AddScoped<IRepositorioPlano, RepositorioPlano>();
+        servicos.AddScoped<IRepositorioCliente, RepositorioCliente>();
+        servicos.AddScoped<IRepositorioAssinatura, RepositorioAssinatura>();
+        servicos.AddScoped<IRepositorioFatura, RepositorioFatura>();
+        servicos.AddScoped<IUnidadeDeTrabalho, UnidadeDeTrabalho>();
 
         servicos.AddSingleton<IRelogioDoSistema, RelogioDoSistema>();
         servicos.AddSingleton<IGatewayPagamento, GatewayPagamentoSimulado>();
 
-        servicos.AddSingleton<ServicoReativacao>();
-        servicos.AddSingleton<ServicoInadimplencia>();
-        servicos.AddSingleton<ServicoTrocaDePlano>();
-
         return servicos;
+    }
+
+    public static async Task AplicarMigracoesDoBancoDeDadosAsync(this IServiceProvider provedorDeServicos)
+    {
+        ArgumentNullException.ThrowIfNull(provedorDeServicos);
+
+        await using var escopo = provedorDeServicos.CreateAsyncScope();
+
+        var contextoDeDados = escopo.ServiceProvider.GetRequiredService<ContextoDeDados>();
+
+        await contextoDeDados.Database.MigrateAsync();
     }
 }

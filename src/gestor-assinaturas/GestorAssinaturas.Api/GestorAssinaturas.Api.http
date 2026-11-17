@@ -35,7 +35,7 @@ Content-Type: application/json
   "identificadorDoPlano": "{{planoCobrancaRecusada}}"
 }
 
-### 2.2 Tentar pagar a fatura de 49,99 (gateway recusa centavos ,99: fatura Falha, assinatura Inadimplente)
+### 2.2 Tentar pagar a fatura de 49,99 (gateway simulado recusa a primeira cobranca ,99: fatura Falha, assinatura Inadimplente)
 POST {{enderecoDaApi}}/api/faturas/COLE_O_IDENTIFICADOR_DA_FATURA_DE_49_99/pagamento
 
 ### 2.3 Trocar o plano da assinatura inadimplente (rejeitado pelo dominio: 422)
@@ -45,6 +45,18 @@ Content-Type: application/json
 {
   "identificadorDoNovoPlano": "{{planoEssencial}}"
 }
+
+### 2.4 Emitir a fatura de recobranca da assinatura inadimplente (copie o identificador retornado)
+POST {{enderecoDaApi}}/api/assinaturas/COLE_O_IDENTIFICADOR_DA_ASSINATURA_INADIMPLENTE/recobranca
+
+### 2.5 Tentar emitir outra recobranca com fatura ainda em aberto (rejeitado pelo ServicoRecobranca: 422)
+POST {{enderecoDaApi}}/api/assinaturas/COLE_O_IDENTIFICADOR_DA_ASSINATURA_INADIMPLENTE/recobranca
+
+### 2.6 Pagar a fatura de recobranca (gateway aprova: fatura Paga, ServicoReativacao devolve a assinatura para Ativa)
+POST {{enderecoDaApi}}/api/faturas/COLE_O_IDENTIFICADOR_DA_FATURA_DE_RECOBRANCA/pagamento
+
+### 2.7 Consultar uma assinatura inexistente via recobranca (404 decidido pelo tipo da falha, nao pelo texto)
+POST {{enderecoDaApi}}/api/assinaturas/00000000-0000-0000-0000-000000000001/recobranca
 
 ### CADASTROS AVULSOS (RF-01 e RF-04 pela API)
 

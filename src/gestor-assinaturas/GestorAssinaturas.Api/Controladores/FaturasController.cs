@@ -6,9 +6,9 @@ namespace GestorAssinaturas.Api.Controladores;
 [Route("api/faturas")]
 public sealed class FaturasController : ControladorDaApi
 {
-    private readonly RegistrarPagamentoApplicationService _registrarPagamento;
+    private readonly RegistrarPagamentoServicoDeAplicacao _registrarPagamento;
 
-    public FaturasController(RegistrarPagamentoApplicationService registrarPagamento)
+    public FaturasController(RegistrarPagamentoServicoDeAplicacao registrarPagamento)
     {
         ArgumentNullException.ThrowIfNull(registrarPagamento);
 
@@ -18,11 +18,11 @@ public sealed class FaturasController : ControladorDaApi
     [HttpPost("{identificador:guid}/pagamento")]
     public async Task<IActionResult> RegistrarPagamentoAsync(
         Guid identificador,
-        CancellationToken cancellationToken)
+        CancellationToken tokenDeCancelamento)
     {
         var entrada = new RegistrarPagamentoEntrada(identificador);
 
-        var resultado = await _registrarPagamento.ExecutarAsync(entrada, cancellationToken);
+        var resultado = await _registrarPagamento.ExecutarAsync(entrada, tokenDeCancelamento);
 
         if (resultado.EhFalha)
         {

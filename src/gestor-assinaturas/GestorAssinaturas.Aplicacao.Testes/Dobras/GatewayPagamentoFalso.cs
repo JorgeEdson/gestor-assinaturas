@@ -36,7 +36,7 @@ public sealed class GatewayPagamentoFalso : IGatewayPagamento
 
     public Task<Resultado<RetornoDaCobranca>> ProcessarCobrancaAsync(
         RequisicaoDeCobranca requisicaoDeCobranca,
-        CancellationToken cancellationToken = default)
+        CancellationToken tokenDeCancelamento = default)
     {
         UltimaRequisicao = requisicaoDeCobranca;
 

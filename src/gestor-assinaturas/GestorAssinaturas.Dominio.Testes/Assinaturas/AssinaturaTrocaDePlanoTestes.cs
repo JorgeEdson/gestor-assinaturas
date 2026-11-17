@@ -37,6 +37,7 @@ public class AssinaturaTrocaDePlanoTestes
 
         Assert.True(resultado.EhSucesso);
         Assert.Equal(novoPlano.Identificador, assinatura.IdentificadorDoPlano);
+        Assert.Equal(novoPlano.Preco, assinatura.ValorDaAssinatura);
     }
 
     [Fact]

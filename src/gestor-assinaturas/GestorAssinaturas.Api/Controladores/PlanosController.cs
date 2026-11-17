@@ -14,9 +14,9 @@ public sealed record CadastrarPlanoRequisicao(
 [Route("api/planos")]
 public sealed class PlanosController : ControladorDaApi
 {
-    private readonly CadastrarPlanoApplicationService _cadastrarPlano;
+    private readonly CadastrarPlanoServicoDeAplicacao _cadastrarPlano;
 
-    public PlanosController(CadastrarPlanoApplicationService cadastrarPlano)
+    public PlanosController(CadastrarPlanoServicoDeAplicacao cadastrarPlano)
     {
         ArgumentNullException.ThrowIfNull(cadastrarPlano);
 
@@ -26,7 +26,7 @@ public sealed class PlanosController : ControladorDaApi
     [HttpPost]
     public async Task<IActionResult> CadastrarAsync(
         [FromBody] CadastrarPlanoRequisicao requisicao,
-        CancellationToken cancellationToken)
+        CancellationToken tokenDeCancelamento)
     {
         var entrada = new CadastrarPlanoEntrada(
             requisicao.Nome,
@@ -35,7 +35,7 @@ public sealed class PlanosController : ControladorDaApi
             requisicao.CicloDeCobranca,
             requisicao.PeriodoDeTrialEmDias);
 
-        var resultado = await _cadastrarPlano.ExecutarAsync(entrada, cancellationToken);
+        var resultado = await _cadastrarPlano.ExecutarAsync(entrada, tokenDeCancelamento);
 
         if (resultado.EhFalha)
         {

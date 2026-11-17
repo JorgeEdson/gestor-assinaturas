@@ -4,6 +4,7 @@ using GestorAssinaturas.Dominio.Assinaturas;
 using GestorAssinaturas.Dominio.Faturas;
 using GestorAssinaturas.Dominio.ObjetosDeValor;
 using GestorAssinaturas.Dominio.Planos;
+using GestorAssinaturas.Dominio.Servicos;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -15,14 +16,14 @@ public class TrocarPlanoServicoDeAplicacaoTestes
     private static readonly Dinheiro PrecoDoPlanoAtual = Dinheiro.Criar(49.90m, "BRL").Instancia;
     private static readonly Dinheiro PrecoDoNovoPlano = Dinheiro.Criar(99.90m, "BRL").Instancia;
 
-    private readonly UnitOfWorkEmMemoria _unitOfWork = new();
+    private readonly UnidadeDeTrabalhoEmMemoria _unidadeDeTrabalho = new();
 
-    private TrocarPlanoApplicationService CriarServico()
+    private TrocarPlanoServicoDeAplicacao CriarServico()
     {
-        return new TrocarPlanoApplicationService(
-            _unitOfWork,
+        return new TrocarPlanoServicoDeAplicacao(
+            _unidadeDeTrabalho,
             new ServicoTrocaDePlano(),
-            NullLogger<TrocarPlanoApplicationService>.Instance);
+            NullLogger<TrocarPlanoServicoDeAplicacao>.Instance);
     }
 
     private static Plano CriarPlano(string nome, Dinheiro preco, int periodoDeTrialEmDias)
@@ -34,7 +35,7 @@ public class TrocarPlanoServicoDeAplicacaoTestes
     {
         var assinatura = Assinatura.Criar(Guid.NewGuid(), Guid.NewGuid(), plano, DataDeInicio).Instancia;
 
-        _unitOfWork.AssinaturaEmMemoria.Semear(assinatura);
+        _unidadeDeTrabalho.AssinaturaEmMemoria.Semear(assinatura);
 
         return assinatura;
     }
@@ -43,7 +44,7 @@ public class TrocarPlanoServicoDeAplicacaoTestes
     {
         var novoPlano = CriarPlano("Plano Profissional", PrecoDoNovoPlano, periodoDeTrialEmDias: 0);
 
-        _unitOfWork.PlanoEmMemoria.AdicionarAsync(novoPlano).GetAwaiter().GetResult();
+        _unidadeDeTrabalho.PlanoEmMemoria.AdicionarAsync(novoPlano).GetAwaiter().GetResult();
 
         return novoPlano;
     }
@@ -52,7 +53,7 @@ public class TrocarPlanoServicoDeAplicacaoTestes
     {
         var fatura = Fatura.Emitir(Guid.NewGuid(), assinatura.Identificador, PrecoDoPlanoAtual, DataDeInicio).Instancia;
 
-        _unitOfWork.FaturaEmMemoria.Semear(fatura);
+        _unidadeDeTrabalho.FaturaEmMemoria.Semear(fatura);
 
         return fatura;
     }
@@ -71,7 +72,7 @@ public class TrocarPlanoServicoDeAplicacaoTestes
         Assert.True(resultado.EhSucesso);
         Assert.Equal(novoPlano.Identificador, assinatura.IdentificadorDoPlano);
         Assert.Equal(PrecoDoNovoPlano, fatura.Valor);
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -84,7 +85,7 @@ public class TrocarPlanoServicoDeAplicacaoTestes
             new TrocarPlanoEntrada(Guid.NewGuid(), novoPlano.Identificador));
 
         Assert.True(resultado.EhFalha);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -97,7 +98,7 @@ public class TrocarPlanoServicoDeAplicacaoTestes
             new TrocarPlanoEntrada(assinatura.Identificador, Guid.NewGuid()));
 
         Assert.True(resultado.EhFalha);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -114,11 +115,11 @@ public class TrocarPlanoServicoDeAplicacaoTestes
         Assert.True(resultado.EhFalha);
         Assert.True(assinatura.EstaEmTrial());
         Assert.Equal(PrecoDoPlanoAtual, fatura.Valor);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
-    public async Task DeveRetornarFalhaParaComandoNulo()
+    public async Task DeveRetornarFalhaParaEntradaNula()
     {
         var servico = CriarServico();
 

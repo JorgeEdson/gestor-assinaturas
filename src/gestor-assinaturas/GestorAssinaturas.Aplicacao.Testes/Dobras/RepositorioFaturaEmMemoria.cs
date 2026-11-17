@@ -1,6 +1,5 @@
-using GestorAssinaturas.Aplicacao.Portas.Persistencia;
-using GestorAssinaturas.Dominio.Comum;
 using GestorAssinaturas.Dominio.Faturas;
+using GestorAssinaturas.Dominio.Repositorios;
 
 namespace GestorAssinaturas.Aplicacao.Testes.Dobras;
 
@@ -15,27 +14,27 @@ public sealed class RepositorioFaturaEmMemoria : IRepositorioFatura
         _faturas[fatura.Identificador] = fatura;
     }
 
-    public Task<Resultado<Fatura>> ObterPorIdentificadorAsync(
+    public Task<Fatura?> ObterPorIdentificadorAsync(
         Guid identificador,
-        CancellationToken cancellationToken = default)
+        CancellationToken tokenDeCancelamento = default)
     {
-        return _faturas.TryGetValue(identificador, out var fatura)
-            ? Task.FromResult(Resultado<Fatura>.Sucesso(fatura))
-            : Task.FromResult(Resultado<Fatura>.Sucesso());
+        _faturas.TryGetValue(identificador, out var fatura);
+
+        return Task.FromResult(fatura);
     }
 
-    public Task<Resultado<IReadOnlyCollection<Fatura>>> ListarPorAssinaturaAsync(
+    public Task<IReadOnlyCollection<Fatura>> ListarPorAssinaturaAsync(
         Guid identificadorDaAssinatura,
-        CancellationToken cancellationToken = default)
+        CancellationToken tokenDeCancelamento = default)
     {
         IReadOnlyCollection<Fatura> faturasDaAssinatura = _faturas.Values
             .Where(fatura => fatura.IdentificadorDaAssinatura == identificadorDaAssinatura)
             .ToList();
 
-        return Task.FromResult(Resultado<IReadOnlyCollection<Fatura>>.Sucesso(faturasDaAssinatura));
+        return Task.FromResult(faturasDaAssinatura);
     }
 
-    public Task AdicionarAsync(Fatura fatura, CancellationToken cancellationToken = default)
+    public Task AdicionarAsync(Fatura fatura, CancellationToken tokenDeCancelamento = default)
     {
         _faturas[fatura.Identificador] = fatura;
 

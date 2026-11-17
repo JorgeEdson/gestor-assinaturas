@@ -1,4 +1,6 @@
 using GestorAssinaturas.Dominio.Assinaturas;
+using GestorAssinaturas.Dominio.ObjetosDeValor;
+using GestorAssinaturas.Dominio.Planos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,13 +20,35 @@ public sealed class AssinaturaConfiguracao : IEntityTypeConfiguration<Assinatura
         construtor.Property(assinatura => assinatura.IdentificadorDoCliente)
             .IsRequired();
 
-        construtor.HasOne(assinatura => assinatura.Plano)
-            .WithMany()
-            .HasForeignKey("IdentificadorPlano")
-            .OnDelete(DeleteBehavior.Restrict)
+        construtor.Property(assinatura => assinatura.IdentificadorDoPlano)
             .IsRequired();
 
-        construtor.Navigation(assinatura => assinatura.Plano).AutoInclude();
+        construtor.HasOne<Plano>()
+            .WithMany()
+            .HasForeignKey(assinatura => assinatura.IdentificadorDoPlano)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        construtor.OwnsOne(assinatura => assinatura.ValorDaAssinatura, valor =>
+        {
+            valor.Property(dinheiro => dinheiro.Valor)
+                .HasColumnName("ValorDaAssinatura")
+                .HasPrecision(18, Dinheiro.QuantidadeDeCasasDecimais)
+                .IsRequired();
+
+            valor.Property(dinheiro => dinheiro.Moeda)
+                .HasColumnName("MoedaDaAssinatura")
+                .HasMaxLength(Dinheiro.QuantidadeDeCaracteresDaMoeda)
+                .IsRequired();
+        });
+
+        construtor.Navigation(assinatura => assinatura.ValorDaAssinatura).IsRequired();
+
+        construtor.Property(assinatura => assinatura.CicloDeCobranca)
+            .HasConversion(
+                cicloDeCobranca => cicloDeCobranca.Tipo,
+                tipo => CicloDeCobranca.APartirDoTipo(tipo).Instancia)
+            .HasColumnName("CicloDeCobranca")
+            .IsRequired();
 
         construtor.Property(assinatura => assinatura.Status)
             .HasConversion<string>()
@@ -35,6 +59,8 @@ public sealed class AssinaturaConfiguracao : IEntityTypeConfiguration<Assinatura
             .IsRequired();
 
         construtor.Property(assinatura => assinatura.DataDeTerminoDoTrial);
+
+        construtor.Property(assinatura => assinatura.DataDeInicioDaCobranca);
 
         construtor.Property(assinatura => assinatura.DataDeCancelamentoAgendado);
 

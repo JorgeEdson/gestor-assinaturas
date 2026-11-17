@@ -5,6 +5,7 @@ using GestorAssinaturas.Dominio.Assinaturas;
 using GestorAssinaturas.Dominio.Faturas;
 using GestorAssinaturas.Dominio.ObjetosDeValor;
 using GestorAssinaturas.Dominio.Planos;
+using GestorAssinaturas.Dominio.Servicos;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -14,16 +15,16 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
 {
     private static readonly DateOnly DataDeReferencia = new(2026, 8, 5);
 
-    private readonly UnitOfWorkEmMemoria _unitOfWork = new();
+    private readonly UnidadeDeTrabalhoEmMemoria _unidadeDeTrabalho = new();
 
-    private RegistrarPagamentoApplicationService CriarServico(GatewayPagamentoFalso gateway)
+    private RegistrarPagamentoServicoDeAplicacao CriarServico(GatewayPagamentoFalso gateway)
     {
-        return new RegistrarPagamentoApplicationService(
-            _unitOfWork,
+        return new RegistrarPagamentoServicoDeAplicacao(
+            _unidadeDeTrabalho,
             gateway,
             new ServicoReativacao(),
             new ServicoInadimplencia(),
-            NullLogger<RegistrarPagamentoApplicationService>.Instance);
+            NullLogger<RegistrarPagamentoServicoDeAplicacao>.Instance);
     }
 
     private static Plano CriarPlano()
@@ -40,7 +41,7 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
     {
         var assinatura = Assinatura.Criar(Guid.NewGuid(), Guid.NewGuid(), CriarPlano(), DataDeReferencia).Instancia;
 
-        _unitOfWork.AssinaturaEmMemoria.Semear(assinatura);
+        _unidadeDeTrabalho.AssinaturaEmMemoria.Semear(assinatura);
 
         return assinatura;
     }
@@ -53,7 +54,7 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
             Dinheiro.Criar(49.90m, "BRL").Instancia,
             DataDeReferencia).Instancia;
 
-        _unitOfWork.FaturaEmMemoria.Semear(fatura);
+        _unidadeDeTrabalho.FaturaEmMemoria.Semear(fatura);
 
         return fatura;
     }
@@ -73,7 +74,7 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
         Assert.Equal(SituacaoDoPagamento.Aprovado, resultado.Instancia);
         Assert.True(fatura.EstaPaga());
         Assert.True(assinatura.EstaAtiva());
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -105,7 +106,7 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
         Assert.Equal(SituacaoDoPagamento.Recusado, resultado.Instancia);
         Assert.Equal(StatusFatura.Falha, fatura.Status);
         Assert.True(assinatura.EstaInadimplente());
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -121,7 +122,7 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
         Assert.True(resultado.EhFalha);
         Assert.True(fatura.EstaAberta());
         Assert.True(assinatura.EstaAtiva());
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -137,7 +138,7 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
 
         Assert.True(resultado.EhFalha);
         Assert.False(gateway.FoiAcionado);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -154,7 +155,7 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
         Assert.True(resultado.EhFalha);
         Assert.False(gateway.FoiAcionado);
         Assert.True(fatura.EstaAberta());
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
@@ -166,12 +167,13 @@ public class RegistrarPagamentoServicoDeAplicacaoTestes
         var resultado = await servico.ExecutarAsync(new RegistrarPagamentoEntrada(Guid.NewGuid()));
 
         Assert.True(resultado.EhFalha);
+        Assert.True(resultado.EhRecursoNaoEncontrado);
         Assert.False(gateway.FoiAcionado);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
-    public async Task DeveRetornarFalhaParaComandoNulo()
+    public async Task DeveRetornarFalhaParaEntradaNula()
     {
         var gateway = GatewayPagamentoFalso.QueAprova();
         var servico = CriarServico(gateway);

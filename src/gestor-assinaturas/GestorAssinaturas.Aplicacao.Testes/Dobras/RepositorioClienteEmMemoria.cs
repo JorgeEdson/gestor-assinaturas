@@ -1,6 +1,5 @@
-using GestorAssinaturas.Aplicacao.Portas.Persistencia;
 using GestorAssinaturas.Dominio.Clientes;
-using GestorAssinaturas.Dominio.Comum;
+using GestorAssinaturas.Dominio.Repositorios;
 
 namespace GestorAssinaturas.Aplicacao.Testes.Dobras;
 
@@ -10,16 +9,16 @@ public sealed class RepositorioClienteEmMemoria : IRepositorioCliente
 
     public IReadOnlyCollection<Cliente> Clientes => _clientes.Values.ToList();
 
-    public Task<Resultado<Cliente>> ObterPorIdentificadorAsync(
+    public Task<Cliente?> ObterPorIdentificadorAsync(
         Guid identificador,
-        CancellationToken cancellationToken = default)
+        CancellationToken tokenDeCancelamento = default)
     {
-        return _clientes.TryGetValue(identificador, out var cliente)
-            ? Task.FromResult(Resultado<Cliente>.Sucesso(cliente))
-            : Task.FromResult(Resultado<Cliente>.Sucesso());
+        _clientes.TryGetValue(identificador, out var cliente);
+
+        return Task.FromResult(cliente);
     }
 
-    public Task AdicionarAsync(Cliente cliente, CancellationToken cancellationToken = default)
+    public Task AdicionarAsync(Cliente cliente, CancellationToken tokenDeCancelamento = default)
     {
         _clientes[cliente.Identificador] = cliente;
 

@@ -1,9 +1,8 @@
 using System.Text.Json.Serialization;
-using GestorAssinaturas.Api.Configuracao.Seed;
+using GestorAssinaturas.Api.Configuracao;
 using GestorAssinaturas.Aplicacao;
 using GestorAssinaturas.Infraestrutura;
-using GestorAssinaturas.Infraestrutura.Persistencia;
-using Microsoft.EntityFrameworkCore;
+using GestorAssinaturas.Infraestrutura.Persistencia.CargaInicial;
 
 var construtorDaAplicacao = WebApplication.CreateBuilder(args);
 
@@ -13,25 +12,27 @@ construtorDaAplicacao.Services
         opcoes.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 construtorDaAplicacao.Services.AddOpenApi();
+construtorDaAplicacao.Services.AddProblemDetails();
+construtorDaAplicacao.Services.AddExceptionHandler<ManipuladorDeExcecoesNaoTratadas>();
 
 var cadeiaDeConexao = construtorDaAplicacao.Configuration.GetConnectionString("GestorAssinaturas")
     ?? throw new InvalidOperationException("A cadeia de conexão 'GestorAssinaturas' não foi configurada.");
 
-construtorDaAplicacao.Services.AdicionarInfraestrutura(cadeiaDeConexao);
 construtorDaAplicacao.Services.AdicionarAplicacao();
+construtorDaAplicacao.Services.AdicionarInfraestrutura(cadeiaDeConexao);
 
 var aplicacao = construtorDaAplicacao.Build();
 
+aplicacao.UseExceptionHandler();
+
 if (aplicacao.Configuration.GetValue<bool>("AplicarMigracoesAoIniciar"))
 {
-    using var escopoDeInicializacao = aplicacao.Services.CreateScope();
-    var contextoDeDados = escopoDeInicializacao.ServiceProvider.GetRequiredService<GestorAssinaturasDbContext>();
-    await contextoDeDados.Database.MigrateAsync();
+    await aplicacao.Services.AplicarMigracoesDoBancoDeDadosAsync();
 }
 
 if (aplicacao.Environment.IsDevelopment())
 {
-    await aplicacao.AplicarCargaInicialAsync();
+    await aplicacao.Services.AplicarCargaInicialAsync();
     aplicacao.MapOpenApi();
 }
 

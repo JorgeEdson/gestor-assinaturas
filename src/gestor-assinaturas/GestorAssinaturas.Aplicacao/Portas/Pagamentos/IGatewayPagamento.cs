@@ -6,5 +6,5 @@ public interface IGatewayPagamento
 {
     Task<Resultado<RetornoDaCobranca>> ProcessarCobrancaAsync(
         RequisicaoDeCobranca requisicaoDeCobranca,
-        CancellationToken cancellationToken = default);
+        CancellationToken tokenDeCancelamento = default);
 }

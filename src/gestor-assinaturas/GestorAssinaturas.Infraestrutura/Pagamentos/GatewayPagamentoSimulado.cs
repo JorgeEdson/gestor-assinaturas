@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using GestorAssinaturas.Aplicacao.Portas.Pagamentos;
 using GestorAssinaturas.Dominio.Comum;
 using Microsoft.Extensions.Logging;
@@ -6,20 +7,21 @@ namespace GestorAssinaturas.Infraestrutura.Pagamentos;
 
 public sealed class GatewayPagamentoSimulado : IGatewayPagamento
 {
-    public const decimal CentavosQueSimulamRecusa = 0.99m;
+    public const decimal CentavosQueSimulamCartaoRecusado = 0.99m;
 
-    private readonly ILogger<GatewayPagamentoSimulado> _logger;
+    private readonly ConcurrentDictionary<Guid, bool> _assinaturasComCartaoJaRecusado = new();
+    private readonly ILogger<GatewayPagamentoSimulado> _registradorDeLog;
 
-    public GatewayPagamentoSimulado(ILogger<GatewayPagamentoSimulado> logger)
+    public GatewayPagamentoSimulado(ILogger<GatewayPagamentoSimulado> registradorDeLog)
     {
-        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(registradorDeLog);
 
-        _logger = logger;
+        _registradorDeLog = registradorDeLog;
     }
 
     public Task<Resultado<RetornoDaCobranca>> ProcessarCobrancaAsync(
         RequisicaoDeCobranca requisicaoDeCobranca,
-        CancellationToken cancellationToken = default)
+        CancellationToken tokenDeCancelamento = default)
     {
         if (requisicaoDeCobranca is null)
         {
@@ -27,11 +29,9 @@ public sealed class GatewayPagamentoSimulado : IGatewayPagamento
                 Resultado<RetornoDaCobranca>.Falha("A requisição de cobrança é obrigatória."));
         }
 
-        var centavosDoValor = requisicaoDeCobranca.Valor.Valor % 1m;
-
-        if (centavosDoValor == CentavosQueSimulamRecusa)
+        if (DeveSimularCartaoRecusado(requisicaoDeCobranca))
         {
-            _logger.LogInformation(
+            _registradorDeLog.LogInformation(
                 "Gateway simulado recusou a cobrança da fatura {IdentificadorDaFatura}.",
                 requisicaoDeCobranca.IdentificadorDaFatura);
 
@@ -42,7 +42,7 @@ public sealed class GatewayPagamentoSimulado : IGatewayPagamento
 
         var identificadorDaTransacao = $"SIM-{Guid.NewGuid():N}";
 
-        _logger.LogInformation(
+        _registradorDeLog.LogInformation(
             "Gateway simulado aprovou a cobrança da fatura {IdentificadorDaFatura} com a transação {IdentificadorDaTransacao}.",
             requisicaoDeCobranca.IdentificadorDaFatura,
             identificadorDaTransacao);
@@ -50,5 +50,17 @@ public sealed class GatewayPagamentoSimulado : IGatewayPagamento
         return Task.FromResult(
             Resultado<RetornoDaCobranca>.Sucesso(
                 RetornoDaCobranca.Aprovado(identificadorDaTransacao)));
+    }
+
+    private bool DeveSimularCartaoRecusado(RequisicaoDeCobranca requisicaoDeCobranca)
+    {
+        var centavosDoValor = requisicaoDeCobranca.Valor.Valor % 1m;
+
+        if (centavosDoValor != CentavosQueSimulamCartaoRecusado)
+        {
+            return false;
+        }
+
+        return _assinaturasComCartaoJaRecusado.TryAdd(requisicaoDeCobranca.IdentificadorDaAssinatura, true);
     }
 }

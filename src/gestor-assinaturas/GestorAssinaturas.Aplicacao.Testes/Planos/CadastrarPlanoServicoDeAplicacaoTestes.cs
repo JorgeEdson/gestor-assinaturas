@@ -8,48 +8,48 @@ namespace GestorAssinaturas.Aplicacao.Testes.Planos;
 
 public class CadastrarPlanoServicoDeAplicacaoTestes
 {
-    private readonly UnitOfWorkEmMemoria _unitOfWork = new();
+    private readonly UnidadeDeTrabalhoEmMemoria _unidadeDeTrabalho = new();
 
-    private CadastrarPlanoApplicationService CriarServico()
+    private CadastrarPlanoServicoDeAplicacao CriarServico()
     {
-        return new CadastrarPlanoApplicationService(
-            _unitOfWork,
-            NullLogger<CadastrarPlanoApplicationService>.Instance);
+        return new CadastrarPlanoServicoDeAplicacao(
+            _unidadeDeTrabalho,
+            NullLogger<CadastrarPlanoServicoDeAplicacao>.Instance);
     }
 
     [Fact]
     public async Task DeveCadastrarPlanoValidoEPersistirComSalvamento()
     {
         var servico = CriarServico();
-        var comando = new CadastrarPlanoEntrada(
+        var entrada = new CadastrarPlanoEntrada(
             "Plano Profissional",
             99.90m,
             "BRL",
             TipoDeCicloDeCobranca.Mensal,
             PeriodoDeTrialEmDias: 14);
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
         Assert.True(resultado.EhSucesso);
         Assert.NotEqual(Guid.Empty, resultado.Instancia);
-        Assert.Single(_unitOfWork.PlanoEmMemoria.Planos);
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Single(_unidadeDeTrabalho.PlanoEmMemoria.Planos);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
     public async Task DevePersistirOPlanoComOIdentificadorRetornado()
     {
         var servico = CriarServico();
-        var comando = new CadastrarPlanoEntrada(
+        var entrada = new CadastrarPlanoEntrada(
             "Plano Essencial",
             49.90m,
             "BRL",
             TipoDeCicloDeCobranca.Anual,
             PeriodoDeTrialEmDias: 0);
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
-        var planoPersistido = Assert.Single(_unitOfWork.PlanoEmMemoria.Planos);
+        var planoPersistido = Assert.Single(_unidadeDeTrabalho.PlanoEmMemoria.Planos);
         Assert.Equal(resultado.Instancia, planoPersistido.Identificador);
         Assert.Equal("Plano Essencial", planoPersistido.Nome);
     }
@@ -58,63 +58,64 @@ public class CadastrarPlanoServicoDeAplicacaoTestes
     public async Task DeveRetornarFalhaParaMoedaInvalidaSemPersistir()
     {
         var servico = CriarServico();
-        var comando = new CadastrarPlanoEntrada(
+        var entrada = new CadastrarPlanoEntrada(
             "Plano Profissional",
             99.90m,
             "MOEDA_INVALIDA",
             TipoDeCicloDeCobranca.Mensal,
             PeriodoDeTrialEmDias: 0);
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.PlanoEmMemoria.Planos);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.False(resultado.EhRecursoNaoEncontrado);
+        Assert.Empty(_unidadeDeTrabalho.PlanoEmMemoria.Planos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
     public async Task DeveRetornarFalhaParaPrecoZeradoSemPersistir()
     {
         var servico = CriarServico();
-        var comando = new CadastrarPlanoEntrada(
+        var entrada = new CadastrarPlanoEntrada(
             "Plano Gratuito",
             0m,
             "BRL",
             TipoDeCicloDeCobranca.Mensal,
             PeriodoDeTrialEmDias: 0);
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.PlanoEmMemoria.Planos);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Empty(_unidadeDeTrabalho.PlanoEmMemoria.Planos);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
     public async Task DeveRetornarFalhaParaNomeInvalidoSemPersistir()
     {
         var servico = CriarServico();
-        var comando = new CadastrarPlanoEntrada(
+        var entrada = new CadastrarPlanoEntrada(
             "AB",
             49.90m,
             "BRL",
             TipoDeCicloDeCobranca.Mensal,
             PeriodoDeTrialEmDias: 0);
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.PlanoEmMemoria.Planos);
+        Assert.Empty(_unidadeDeTrabalho.PlanoEmMemoria.Planos);
     }
 
     [Fact]
-    public async Task DeveRetornarFalhaParaComandoNulo()
+    public async Task DeveRetornarFalhaParaEntradaNula()
     {
         var servico = CriarServico();
 
         var resultado = await servico.ExecutarAsync(null!);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.PlanoEmMemoria.Planos);
+        Assert.Empty(_unidadeDeTrabalho.PlanoEmMemoria.Planos);
     }
 }

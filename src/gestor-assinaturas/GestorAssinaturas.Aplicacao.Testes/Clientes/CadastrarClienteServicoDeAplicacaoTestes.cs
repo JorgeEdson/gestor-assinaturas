@@ -7,38 +7,38 @@ namespace GestorAssinaturas.Aplicacao.Testes.Clientes;
 
 public class CadastrarClienteServicoDeAplicacaoTestes
 {
-    private readonly UnitOfWorkEmMemoria _unitOfWork = new();
+    private readonly UnidadeDeTrabalhoEmMemoria _unidadeDeTrabalho = new();
 
-    private CadastrarClienteApplicationService CriarServico()
+    private CadastrarClienteServicoDeAplicacao CriarServico()
     {
-        return new CadastrarClienteApplicationService(
-            _unitOfWork,
-            NullLogger<CadastrarClienteApplicationService>.Instance);
+        return new CadastrarClienteServicoDeAplicacao(
+            _unidadeDeTrabalho,
+            NullLogger<CadastrarClienteServicoDeAplicacao>.Instance);
     }
 
     [Fact]
     public async Task DeveCadastrarClienteValidoEPersistirComSalvamento()
     {
         var servico = CriarServico();
-        var comando = new CadastrarClienteEntrada("Empresa Contratante", "contato@empresa.com");
+        var entrada = new CadastrarClienteEntrada("Empresa Contratante", "contato@empresa.com");
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
         Assert.True(resultado.EhSucesso);
         Assert.NotEqual(Guid.Empty, resultado.Instancia);
-        Assert.Single(_unitOfWork.ClienteEmMemoria.Clientes);
-        Assert.Equal(1, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Single(_unidadeDeTrabalho.ClienteEmMemoria.Clientes);
+        Assert.Equal(1, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
     public async Task DevePersistirOClienteComOIdentificadorRetornado()
     {
         var servico = CriarServico();
-        var comando = new CadastrarClienteEntrada("Empresa Contratante", "contato@empresa.com");
+        var entrada = new CadastrarClienteEntrada("Empresa Contratante", "contato@empresa.com");
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
-        var clientePersistido = Assert.Single(_unitOfWork.ClienteEmMemoria.Clientes);
+        var clientePersistido = Assert.Single(_unidadeDeTrabalho.ClienteEmMemoria.Clientes);
         Assert.Equal(resultado.Instancia, clientePersistido.Identificador);
         Assert.Equal("contato@empresa.com", clientePersistido.Email.Endereco);
     }
@@ -47,36 +47,36 @@ public class CadastrarClienteServicoDeAplicacaoTestes
     public async Task DeveRetornarFalhaParaEmailInvalidoSemPersistir()
     {
         var servico = CriarServico();
-        var comando = new CadastrarClienteEntrada("Empresa Contratante", "email-invalido");
+        var entrada = new CadastrarClienteEntrada("Empresa Contratante", "email-invalido");
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.ClienteEmMemoria.Clientes);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Empty(_unidadeDeTrabalho.ClienteEmMemoria.Clientes);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
     public async Task DeveRetornarFalhaParaNomeInvalidoSemPersistir()
     {
         var servico = CriarServico();
-        var comando = new CadastrarClienteEntrada("AB", "contato@empresa.com");
+        var entrada = new CadastrarClienteEntrada("AB", "contato@empresa.com");
 
-        var resultado = await servico.ExecutarAsync(comando);
+        var resultado = await servico.ExecutarAsync(entrada);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.ClienteEmMemoria.Clientes);
-        Assert.Equal(0, _unitOfWork.QuantidadeDeSalvamentos);
+        Assert.Empty(_unidadeDeTrabalho.ClienteEmMemoria.Clientes);
+        Assert.Equal(0, _unidadeDeTrabalho.QuantidadeDeSalvamentos);
     }
 
     [Fact]
-    public async Task DeveRetornarFalhaParaComandoNulo()
+    public async Task DeveRetornarFalhaParaEntradaNula()
     {
         var servico = CriarServico();
 
         var resultado = await servico.ExecutarAsync(null!);
 
         Assert.True(resultado.EhFalha);
-        Assert.Empty(_unitOfWork.ClienteEmMemoria.Clientes);
+        Assert.Empty(_unidadeDeTrabalho.ClienteEmMemoria.Clientes);
     }
 }

@@ -7,8 +7,6 @@ public sealed record RetornoDaCobranca(
 {
     public bool FoiAprovado => Situacao == SituacaoDoPagamento.Aprovado;
 
-    public bool FoiRecusado => Situacao == SituacaoDoPagamento.Recusado;
-
     public static RetornoDaCobranca Aprovado(string identificadorDaTransacao)
     {
         return new RetornoDaCobranca(SituacaoDoPagamento.Aprovado, identificadorDaTransacao, MotivoDaRecusa: null);

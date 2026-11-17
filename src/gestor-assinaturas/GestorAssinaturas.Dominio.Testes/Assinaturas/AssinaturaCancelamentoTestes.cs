@@ -141,6 +141,80 @@ public class AssinaturaCancelamentoTestes
     }
 
     [Fact]
+    public void DeveCalcularOFimDoPeriodoVigenteNoPrimeiroCiclo()
+    {
+        var assinatura = CriarAssinaturaAtiva();
+
+        var dataDeFim = assinatura.CalcularDataDeFimDoPeriodoVigente(DataDeInicio);
+
+        Assert.Equal(new DateOnly(2026, 9, 5), dataDeFim);
+    }
+
+    [Fact]
+    public void DeveCalcularOFimDoCicloVigenteQuandoAAssinaturaJaRenovouAlgunsCiclos()
+    {
+        var assinatura = CriarAssinaturaAtiva();
+
+        var dataDeFim = assinatura.CalcularDataDeFimDoPeriodoVigente(new DateOnly(2026, 10, 20));
+
+        Assert.Equal(new DateOnly(2026, 11, 5), dataDeFim);
+    }
+
+    [Fact]
+    public void DeveAvancarParaOProximoCicloQuandoAReferenciaCaiExatamenteNoVencimento()
+    {
+        var assinatura = CriarAssinaturaAtiva();
+
+        var dataDeFim = assinatura.CalcularDataDeFimDoPeriodoVigente(new DateOnly(2026, 9, 5));
+
+        Assert.Equal(new DateOnly(2026, 10, 5), dataDeFim);
+    }
+
+    [Fact]
+    public void DeveUsarOFimDoTrialComoFimDoPeriodoVigenteDeUmaAssinaturaEmTrial()
+    {
+        var assinatura = CriarAssinaturaEmTrial();
+
+        var dataDeFim = assinatura.CalcularDataDeFimDoPeriodoVigente(DataDeInicio);
+
+        Assert.Equal(assinatura.DataDeTerminoDoTrial, dataDeFim);
+    }
+
+    [Fact]
+    public void DeveContarOsCiclosAPartirDaAtivacaoDeUmaAssinaturaQueSaiuDoTrial()
+    {
+        var assinatura = CriarAssinaturaEmTrial();
+        assinatura.Ativar(new DateOnly(2026, 8, 10));
+
+        var dataDeFim = assinatura.CalcularDataDeFimDoPeriodoVigente(new DateOnly(2026, 8, 20));
+
+        Assert.Equal(new DateOnly(2026, 9, 10), dataDeFim);
+    }
+
+    [Fact]
+    public void DeveCancelarImediatamentePelaModalidadeInformada()
+    {
+        var assinatura = CriarAssinaturaAtiva();
+
+        var resultado = assinatura.Cancelar(ModalidadeDeCancelamento.Imediato, DataDeInicio);
+
+        Assert.True(resultado.EhSucesso);
+        Assert.True(assinatura.EstaCancelada());
+    }
+
+    [Fact]
+    public void DeveAgendarOCancelamentoPeloDominioAoFimDoPeriodoVigente()
+    {
+        var assinatura = CriarAssinaturaAtiva();
+
+        var resultado = assinatura.Cancelar(ModalidadeDeCancelamento.AoFimDoPeriodoVigente, new DateOnly(2026, 10, 20));
+
+        Assert.True(resultado.EhSucesso);
+        Assert.True(assinatura.EstaAtiva());
+        Assert.Equal(new DateOnly(2026, 11, 5), assinatura.DataDeCancelamentoAgendado);
+    }
+
+    [Fact]
     public void DevePermitirCancelamentoImediatoMesmoComCancelamentoAgendado()
     {
         var assinatura = CriarAssinaturaAtiva();

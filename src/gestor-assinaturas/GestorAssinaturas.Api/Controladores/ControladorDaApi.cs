@@ -10,13 +10,12 @@ public abstract class ControladorDaApi : ControllerBase
 {
     protected IActionResult ConverterFalha(Resultado resultado)
     {
-        var erros = resultado.Erros!.ToList();
+        var respostaDeErro = new RespostaDeErro(resultado.Erros!.ToList());
 
-        if (erros.Any(erro => erro.Contains("não encontrad", StringComparison.OrdinalIgnoreCase)))
+        return resultado.TipoDeFalha switch
         {
-            return NotFound(new RespostaDeErro(erros));
-        }
-
-        return UnprocessableEntity(new RespostaDeErro(erros));
+            TipoDeFalha.RecursoNaoEncontrado => NotFound(respostaDeErro),
+            _ => UnprocessableEntity(respostaDeErro)
+        };
     }
 }
